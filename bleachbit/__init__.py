@@ -166,16 +166,17 @@ for __icon in __icons:
     if os.path.exists(__icon):
         appicon_path = __icon
 
-# menu
+# ~~menu~~ the main window + dialogs (<TODO) definition
 # This path works when running from source (cross platform) or when
 # installed on Windows.
-app_menu_filename = os.path.join(bleachbit_exe_path, 'data', 'app-menu.ui')
-if not os.path.exists(app_menu_filename) and system_cleaners_dir:
+app_window_filename = os.path.join(bleachbit_exe_path, 'data', 'bleachbit.xrc')
+# app_prefs_filename = os.path.join(bleachbit_exe_path, 'data', 'bleachbit_prefs.xrc')
+if not os.path.exists(app_window_filename) and system_cleaners_dir:
     # This path works when installed on Linux.
-    app_menu_filename = os.path.abspath(
-        os.path.join(system_cleaners_dir, '../app-menu.ui'))
-if not os.path.exists(app_menu_filename):
-    logger.error('unknown location for app-menu.ui')
+    app_window_filename = os.path.abspath(
+        os.path.join(system_cleaners_dir, '../bleachbit.xrc'))
+if not os.path.exists(app_window_filename):
+    logger.error('unknown location for bleachbit.xrc - the GUI cannot be created without this')
 
 # locale directory
 if os.path.exists("./locale/"):

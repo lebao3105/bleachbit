@@ -55,7 +55,8 @@ if os.name == 'nt':
 if 1 == len(sys.argv):
     import bleachbit.GUI
     app = bleachbit.GUI.Bleachbit()
-    sys.exit(app.run(sys.argv))
+    app.mainFrame.Show()
+    sys.exit(app.MainLoop())
 else:
     import bleachbit.CLI
     bleachbit.CLI.process_cmd_line()

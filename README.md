@@ -1,5 +1,9 @@
 # BleachBit
 
+> This is a working-in-progress (WIP) port of BleachBit to use wxPython rather
+> than GTK 3, in order to make macOS support. Subjects to change.
+> Currently it's NOT runnable yet, as the main GUI is not fully ported to wx.
+
 BleachBit cleans files to free disk space and to maintain privacy.
 
 ## Running from source

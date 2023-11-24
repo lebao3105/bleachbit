@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<resource xmlns="http://www.wxwidgets.org/wxxrc" version="2.5.3.0">
+  <object class="wxFrame" name="MainFrame">
+    <size>500,300</size>
+    <style>wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL</style>
+    <title>BleachBit</title>
+    <centered>1</centered>
+    <aui_managed>0</aui_managed>
+    <object class="wxMenuBar" name="m_menubar1">
+      <object class="wxMenu" name="m_menu2">
+        <label>More operations</label>
+        <object class="wxMenuItem" name="m_menuItem1">
+          <label>_Shred Files</label>
+          <accel></accel>
+          <help></help>
+        </object>
+        <object class="wxMenuItem" name="m_menuItem2">
+          <label>Sh_red Folders</label>
+          <accel></accel>
+          <help></help>
+        </object>
+        <object class="wxMenuItem" name="m_menuItem3">
+          <label>Shred Paths from Clipboard</label>
+          <accel>Ctrl+V</accel>
+          <help></help>
+        </object>
+        <object class="wxMenuItem" name="m_menuItem4">
+          <label>_Wipe Free Space</label>
+          <accel></accel>
+          <help></help>
+        </object>
+        <object class="wxMenuItem" name="m_menuItem5">
+          <label>__Make Chaff</label>
+          <accel></accel>
+          <help></help>
+        </object>
+        <object class="wxMenuItem" name="m_menuItem6">
+          <label>S__hred Settings and Quit</label>
+          <accel></accel>
+          <help></help>
+        </object>
+        <object class="separator"/>
+        <object class="wxMenuItem" name="m_menuItem11">
+          <label>Quit</label>
+          <accel></accel>
+          <help></help>
+        </object>
+      </object>
+      <object class="wxMenu" name="m_menu3">
+        <label>Help</label>
+        <object class="wxMenuItem" name="m_menuItem7">
+          <label>Preferences</label>
+          <accel></accel>
+          <help></help>
+        </object>
+        <object class="separator"/>
+        <object class="wxMenuItem" name="m_menuItem8">
+          <label>S_ystem infomations</label>
+          <accel></accel>
+          <help></help>
+        </object>
+        <object class="wxMenuItem" name="m_menuItem9">
+          <label>_Help</label>
+          <accel></accel>
+          <help></help>
+        </object>
+        <object class="wxMenuItem" name="m_menuItem10">
+          <label>_About</label>
+          <accel>F1</accel>
+          <help></help>
+        </object>
+      </object>
+    </object>
+    <object class="wxToolBar" name="m_toolBar1">
+      <style>wxTB_HORIZONTAL</style>
+      <bitmapsize></bitmapsize>
+      <margins></margins>
+      <packing>1</packing>
+      <separation>5</separation>
+      <object class="tool" name="m_tool1">
+        <label>Preview</label>
+        <tooltip>Preview files in the selected operations (without deleting any files)</tooltip>
+        <longhelp></longhelp>
+        <bitmap stock_id="wxART_FIND" stock_client="wxART_TOOLBAR">undefined.png</bitmap>
+      </object>
+      <object class="tool" name="m_tool2">
+        <label>Clean</label>
+        <tooltip>Clean files in the selected operations</tooltip>
+        <longhelp></longhelp>
+        <bitmap stock_id="wxART_DELETE" stock_client="wxART_TOOLBAR">undefined.png</bitmap>
+      </object>
+      <object class="tool" name="m_tool3">
+        <label>Abort</label>
+        <tooltip>Abort the preview or cleaning process</tooltip>
+        <longhelp></longhelp>
+        <bitmap stock_id="wxART_CROSS_MARK" stock_client="wxART_TOOLBAR">undefined.png</bitmap>
+      </object>
+    </object>
+    <object class="wxBoxSizer" name="bSizer1">
+      <orient>wxHORIZONTAL</orient>
+      <object class="sizeritem">
+        <flag>wxEXPAND | wxALL</flag>
+        <border>5</border>
+        <option>1</option>
+        <object class="unknown" name="m_treeListCtrl1"/>
+      </object>
+      <object class="sizeritem">
+        <flag>wxALL|wxEXPAND</flag>
+        <border>5</border>
+        <option>1</option>
+        <object class="wxHtmlWindow" name="m_htmlWin1">
+          <style>wxHW_SCROLLBAR_AUTO</style>
+        </object>
+      </object>
+    </object>
+  </object>
+</resource>
