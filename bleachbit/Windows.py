@@ -69,6 +69,8 @@ if 'win32' == sys.platform:
 logger = logging.getLogger(__name__)
 
 
+# TODO: Check for references then make them use wx functions
+
 def browse_file(_, title):
     """Ask the user to select a single file.  Return full path"""
     try:
@@ -123,6 +125,8 @@ def browse_folder(_, title):
     fullpath = shell.SHGetPathFromIDListW(pidl)
     return fullpath
 
+
+# END TODO File/folder picker checks
 
 def check_dll_hijacking(window=None):
     """Check for possible DLL search-order hijacking

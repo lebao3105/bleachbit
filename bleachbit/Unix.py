@@ -448,14 +448,12 @@ def __is_broken_xdg_desktop_application(config, desktop_pathname):
 
 def is_unregistered_mime(mimetype):
     """Returns True if the MIME type is known to be unregistered. If
-    registered or unknown, conservatively returns False."""
-    try:
-        from gi.repository import Gio
-        if 0 == len(Gio.app_info_get_all_for_type(mimetype)):
-            return True
-    except ImportError:
-        logger.warning(
-            'error calling gio.app_info_get_all_for_type(%s)', mimetype)
+    registered or ~unknown~, conservatively returns False."""
+    
+    # Literally not work with unknown mimetypes, which is
+    # supposed to make this function return False.
+    if not mimetype in mimetypes.types_map.values():
+        return True
     return False
 
 
@@ -464,38 +462,46 @@ def is_broken_xdg_desktop(pathname):
     Reference: http://standards.freedesktop.org/desktop-entry-spec/latest/"""
     config = bleachbit.RawConfigParser()
     config.read(pathname)
+    
+    def is_exist(option: str):
+        if not config.has_option('Desktop Entry', option):
+            logger.info( # Why info level?
+                f"is_broken_xdg_menu: missing required option '{option}': {pathname}"
+            )
+            return True
+        return False
+        
     if not config.has_section('Desktop Entry'):
         logger.info(
             "is_broken_xdg_menu: missing required section 'Desktop Entry': '%s'", pathname)
         return True
-    if not config.has_option('Desktop Entry', 'Type'):
-        logger.info(
-            "is_broken_xdg_menu: missing required option 'Type': '%s'", pathname)
-        return True
+    
+    if is_exist('Type') == True: return True
     file_type = config.get('Desktop Entry', 'Type').strip().lower()
+    
     if 'link' == file_type:
-        if not config.has_option('Desktop Entry', 'URL') and \
-                not config.has_option('Desktop Entry', 'URL[$e]'):
+        if is_exist('URL') and not config.has_option('Desktop Entry', 'URL[$e]'):
             logger.info(
                 "is_broken_xdg_menu: missing required option 'URL': '%s'", pathname)
             return True
         return False
+    
     if 'mimetype' == file_type:
-        if not config.has_option('Desktop Entry', 'MimeType'):
-            logger.info(
-                "is_broken_xdg_menu: missing required option 'MimeType': '%s'", pathname)
-            return True
+        if is_exist('MimeType') == True: return True
         mimetype = config.get('Desktop Entry', 'MimeType').strip().lower()
         if is_unregistered_mime(mimetype):
             logger.info(
                 "is_broken_xdg_menu: MimeType '%s' not registered '%s'", mimetype, pathname)
             return True
         return False
+    
     if 'application' != file_type:
         logger.warning("unhandled type '%s': file '%s'", file_type, pathname)
         return False
+    
     if __is_broken_xdg_desktop_application(config, pathname):
         return True
+    
     return False
 
 
