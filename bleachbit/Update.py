@@ -116,36 +116,27 @@ def user_agent():
 
 def update_dialog(parent, updates):
     """Updates contains the version numbers and URLs"""
-    from gi.repository import Gtk
     from bleachbit.GuiBasic import open_url
-    dlg = Gtk.Dialog(title=_("Update BleachBit"),
-                     transient_for=parent,
-                     modal=True,
-                     destroy_with_parent=True)
-    dlg.set_default_size(250, 125)
+    from wx import MessageDialog, ICON_INFORMATION, YES_NO, ID_YES
 
-    label = Gtk.Label(label=_("A new version is available."))
-    dlg.vbox.pack_start(label, True, True, 0)
-
-    for update in updates:
+    dlg = MessageDialog(parent, message=_("A new version is available."),
+                        caption=_("Update BleachBit"),
+                        style=ICON_INFORMATION | YES_NO)
+    
+    for update in updates: # lebao3105: I don't understand this yet.
         ver = update[0]
         url = update[1]
-        box_update = Gtk.Box()
-        # TRANSLATORS: %s expands to version such as '0.8.4' or '0.8.5beta' or
-        # similar
-        button_stable = Gtk.Button(_("Update to version %s") % ver)
-        button_stable.connect(
-            'clicked', lambda dummy: open_url(url, parent, False))
-        button_stable.connect('clicked', lambda dummy: dlg.response(0))
-        box_update.pack_start(button_stable, False, True, 10)
-        dlg.vbox.pack_start(box_update, False, True, 0)
+        # TRANSLATORS: %s expands to version such as '0.8.4' or '0.8.5beta'
+        # or similiar
+        msg = _("Update to version %s") % ver
+        dlg.SetYesNoLabels(msg, _("Cancel"))
 
-    dlg.add_button(Gtk.STOCK_CLOSE, Gtk.ResponseType.CLOSE)
-
-    dlg.show_all()
-    dlg.run()
-    dlg.destroy()
-
+        # Since I only use wxMessageDialog for one-time ask,
+        # I don't know if the dialog would get destroyed after
+        # showing itself
+        if dlg.ShowModal() == ID_YES:
+            open_url(url, parent, False)
+    
     return False
 
 

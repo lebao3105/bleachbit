@@ -26,15 +26,13 @@ from bleachbit import _, ModuleNotFoundError
 import os
 
 try:
-    import gi
+    import wx
 except ModuleNotFoundError as e:
     print('*'*60)
-    print('Please install PyGObject')
-    print('https://pygobject.readthedocs.io/en/latest/getting_started.html')
+    print('Please install wxPython')
+    print('May require additional build tools + GUI toolkit!')
     print('*'*60)
     raise e
-gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, Gdk  # keep after gi.require_version()
 
 if os.name == 'nt':
     from bleachbit import Windows
@@ -43,145 +41,90 @@ if os.name == 'nt':
 def browse_folder(parent, title, multiple, stock_button):
     """Ask the user to select a folder.  Return the full path or None."""
 
-    if os.name == 'nt' and not os.getenv('BB_NATIVE'):
-        ret = Windows.browse_folder(parent, title)
-        return [ret] if multiple and not ret is None else ret
+    # if os.name == 'nt' and not os.getenv('BB_NATIVE'):
+    #     ret = Windows.browse_folder(parent, title)
+    #     return [ret] if multiple and not ret is None else ret
 
-    # fall back to GTK+
-    chooser = Gtk.FileChooserDialog(transient_for=parent,
-                                    title=title,
-                                    action=Gtk.FileChooserAction.SELECT_FOLDER)
-    chooser.add_buttons(_("_Cancel"), Gtk.ResponseType.CANCEL,
-                        stock_button, Gtk.ResponseType.OK)
-    chooser.set_default_response(Gtk.ResponseType.OK)
-    chooser.set_select_multiple(multiple)
-    chooser.set_current_folder(os.path.expanduser('~'))
-    resp = chooser.run()
-    if multiple:
-        ret = chooser.get_filenames()
+    chooser = wx.DirDialog(parent, title,
+                           style=(wx.DD_DEFAULT_STYLE if not multiple
+                                else wx.DD_MULTIPLE) | wx.DD_DIR_MUST_EXIST)
+    
+    ret: list
+    
+    if chooser.ShowModal() == wx.ID_OK:
+        if multiple: ret = chooser.GetPaths(ret)
+        else: ret = [chooser.GetPath()]
     else:
-        ret = chooser.get_filename()
-    chooser.hide()
-    chooser.destroy()
-    if Gtk.ResponseType.OK != resp:
-        # user cancelled
-        return None
+        ret = None
+        
     return ret
 
 
-def browse_file(parent, title):
+def browse_file(parent, title, multiple: bool = False):
     """Prompt user to select a single file"""
 
-    if os.name == 'nt' and not os.getenv('BB_NATIVE'):
-        return Windows.browse_file(parent, title)
-
-    chooser = Gtk.FileChooserDialog(title=title,
-                                    transient_for=parent,
-                                    action=Gtk.FileChooserAction.OPEN)
-    chooser.add_buttons(_("_Cancel"), Gtk.ResponseType.CANCEL,
-                        _("_Open"), Gtk.ResponseType.OK)
-    chooser.set_default_response(Gtk.ResponseType.OK)
-    chooser.set_current_folder(os.path.expanduser('~'))
-    resp = chooser.run()
-    path = chooser.get_filename()
-    chooser.destroy()
-
-    if Gtk.ResponseType.OK != resp:
-        # user cancelled
+    chooser = wx.FileDialog(parent, title, os.path.expanduser('~'),
+                            style=(wx.FD_MULTIPLE if multiple
+                                   else wx.FD_DEFAULT_STYLE) | wx.FD_FILE_MUST_EXIST)
+    
+    if chooser.ShowModal() == wx.ID_OK:
+        if multiple: return chooser.GetPaths()
+        else: return chooser.GetPath()
+    else:
         return None
-
-    return path
 
 
 def browse_files(parent, title):
     """Prompt user to select multiple files to delete"""
 
-    if os.name == 'nt' and not os.getenv('BB_NATIVE'):
-        return Windows.browse_files(parent, title)
-
-    chooser = Gtk.FileChooserDialog(title=title,
-                                    transient_for=parent,
-                                    action=Gtk.FileChooserAction.OPEN)
-    chooser.add_buttons(_("_Cancel"), Gtk.ResponseType.CANCEL,
-                        _("_Delete"), Gtk.ResponseType.OK)
-    chooser.set_default_response(Gtk.ResponseType.OK)
-    chooser.set_select_multiple(True)
-    chooser.set_current_folder(os.path.expanduser('~'))
-    resp = chooser.run()
-    paths = chooser.get_filenames()
-    chooser.destroy()
-
-    if Gtk.ResponseType.OK != resp:
-        # user cancelled
-        return None
-
-    return paths
+    return browse_file(parent, title, True)
 
 
 def delete_confirmation_dialog(parent, mention_preview, shred_settings=False):
     """Return boolean whether OK to delete files."""
-    dialog = Gtk.Dialog(title=_("Delete confirmation"), transient_for=parent,
-                        modal=True,
-                        destroy_with_parent=True)
-    dialog.set_default_size(300, -1)
-
-    vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL,
-                   homogeneous=False, spacing=10)
 
     if shred_settings:
-        notice_text = _("This function deletes all BleachBit settings and then quits the application. Use this to hide your use of BleachBit or to reset its settings. The next time you start BleachBit, the settings will initialize to default values.")
-        notice = Gtk.Label(label=notice_text)
-        notice.set_line_wrap(True)
-        vbox.pack_start(notice, False, True, 0)
+        notice_text = _(
+            "This function deletes all BleachBit settings and then quits the application. "
+            "Use this to hide your use of BleachBit or to reset its settings. "
+            "The next time you start BleachBit, the settings will initialize to default values.")
 
     if mention_preview:
         question_text = _(
-            "Are you sure you want to permanently delete files according to the selected operations?  The actual files that will be deleted may have changed since you ran the preview.")
+            "Are you sure you want to permanently delete files according to the selected operations? "
+            "The actual files that will be deleted may have changed since you ran the preview.")
     else:
         question_text = _(
             "Are you sure you want to permanently delete these files?")
-    question = Gtk.Label(label=question_text)
-    question.set_line_wrap(True)
-    vbox.pack_start(question, False, True, 0)
-
-    dialog.get_content_area().pack_start(vbox, False, True, 0)
-    dialog.get_content_area().set_spacing(10)
-
-    dialog.add_button(_('_Delete'), Gtk.ResponseType.ACCEPT)
-    dialog.add_button(_('_Cancel'), Gtk.ResponseType.CANCEL)
-    dialog.set_default_response(Gtk.ResponseType.CANCEL)
-
-    dialog.show_all()
-    ret = dialog.run()
-    dialog.destroy()
-    return ret == Gtk.ResponseType.ACCEPT
+        
+    ret = wx.MessageBox(notice_text, _("Delete confirmation"), wx.YES_NO | wx.ICON_WARNING, parent)
+    
+    return ret == wx.ID_YES
 
 
-def message_dialog(parent, msg, mtype=Gtk.MessageType.ERROR, buttons=Gtk.ButtonsType.OK, title=None):
-    """Convenience wrapper for Gtk.MessageDialog"""
-
-    dialog = Gtk.MessageDialog(transient_for=parent,
-                               modal=True,
-                               destroy_with_parent=True,
-                               message_type=mtype,
-                               buttons=buttons,
-                               text=msg)
-    if title:
-        dialog.set_title(title)
-    resp = dialog.run()
-    dialog.destroy()
+def message_dialog(parent, msg, mtype=wx.ICON_ERROR, buttons=wx.OK_DEFAULT, title=None):
+    """Convenience wrapper for wx.MessageDialog"""
+    
+    dialog = wx.MessageDialog(
+        parent, msg, title="" if not title else title,
+        style = buttons | mtype
+    )
+    
+    resp = dialog.ShowModal()
 
     return resp
 
 
 def open_url(url, parent_window=None, prompt=True):
     """Open an HTTP URL.  Try to run as non-root."""
+    
     # drop privileges so the web browser is running as a normal process
     if os.name == 'posix' and os.getuid() == 0:
         msg = _(
             "Because you are running as root, please manually open this link in a web browser:\n%s") % url
-        message_dialog(None, msg, Gtk.MessageType.INFO)
+        message_dialog(None, msg, wx.ICON_INFORMATION)
         return
+    
     if prompt:
         # find hostname
         import re
@@ -190,23 +133,18 @@ def open_url(url, parent_window=None, prompt=True):
             host = url
         else:
             host = ret.group(2)
+            
         # TRANSLATORS: %s expands to www.bleachbit.org or similar
         msg = _("Open web browser to %s?") % host
         resp = message_dialog(parent_window,
                               msg,
-                              Gtk.MessageType.QUESTION,
-                              Gtk.ButtonsType.OK_CANCEL,
+                              wx.ICON_QUESTION,
+                              wx.YES_NO,
                               _('Confirm'))
-        if Gtk.ResponseType.OK != resp:
+        
+        if resp != wx.ID_YES:
             return
+        
     # open web browser
-    if os.name == 'nt':
-        # in Gtk.show_uri() avoid 'glib.GError: No application is registered as
-        # handling this file'
-        import webbrowser
-        webbrowser.open(url)
-    elif (Gtk.get_major_version(), Gtk.get_minor_version()) < (3, 22):
-        # Ubuntu 16.04 LTS ships with GTK 3.18
-        Gtk.show_uri(None, url, Gdk.CURRENT_TIME)
-    else:
-        Gtk.show_uri_on_window(parent_window, url, Gdk.CURRENT_TIME)
+    import webbrowser
+    webbrowser.open(url)
