@@ -50,17 +50,15 @@ def get_system_information():
         s += '\nBuild number %s' % build_number
     except:
         pass
-    try:
-        import gi
-        gi.require_version('Gtk', '3.0')
-        from gi.repository import Gtk
-        s += '\nGTK version {0}.{1}.{2}'.format(
-            Gtk.get_major_version(), Gtk.get_minor_version(), Gtk.get_micro_version())
-        s += '\nGTK theme = %s' % Gtk.Settings.get_default().get_property('gtk-theme-name')
-        s += '\nGTK icon theme = %s' % Gtk.Settings.get_default().get_property('gtk-icon-theme-name')
-        s += '\nGTK prefer dark theme = %s' % Gtk.Settings.get_default().get_property('gtk-application-prefer-dark-theme')
-    except:
-        pass
+    
+    import wx
+    # s += '\nGTK version {0}.{1}.{2}'.format(
+    #     Gtk.get_major_version(), Gtk.get_minor_version(), Gtk.get_micro_version())
+    # s += '\nGTK theme = %s' % Gtk.Settings.get_default().get_property('gtk-theme-name')
+    # s += '\nGTK icon theme = %s' % Gtk.Settings.get_default().get_property('gtk-icon-theme-name')
+    # s += '\nGTK prefer dark theme = %s' % Gtk.Settings.get_default().get_property('gtk-application-prefer-dark-theme')
+    s += f'\nwxPython {wx.__version__}'
+    
     import sqlite3
     s += "\nSQLite version %s" % sqlite3.sqlite_version
 
@@ -84,21 +82,34 @@ def get_system_information():
     if sys.platform.startswith('linux'):
         s += "\nplatform.linux_distribution() = %s" % str(platform.linux_distribution())
 
-    # Mac Version Name - Dictionary
+    # OS version (macOS/Windows)
+    
+    ## Mac Version Name - Dictionary
     macosx_dict = {'5': 'Leopard', '6': 'Snow Leopard', '7': 'Lion', '8': 'Mountain Lion',
-                   '9': 'Mavericks', '10': 'Yosemite', '11': 'El Capitan', '12': 'Sierra'}
+                   '9': 'Mavericks', '10': 'Yosemite', '11': 'El Capitan', '12': 'Sierra',
+                   '13': 'High Sierra', '14': 'Mojave', '15': 'Catalina'}
+    
+    macos_dict = {'11': 'Big Sur', '12': 'Monterey', '13': 'Ventura', '14': 'Sonoma'}
 
     if sys.platform.startswith('darwin'):
         if hasattr(platform, 'mac_ver'):
-            for key in macosx_dict:
-                if (platform.mac_ver()[0].split('.')[1] == key):
+            ver = platform.mac_ver()[0]
+            major = ver.split('.')[0]
+            
+            if int(major) >= 11: # Big Sur+
+                s += f"\nplatform.mac_ver() = {ver} ({macos_dict[major]})"
+            else:
+                for key in macosx_dict:
                     s += "\nplatform.mac_ver() = %s" % str(
-                        platform.mac_ver()[0] + " (" + macosx_dict[key] + ")")
+                        ver + " (" + macosx_dict[ver.split('.')[1]] + ")")
         else:
             s += "\nplatform.dist() = %s" % str(platform.linux_distribution(full_distribution_name=0))
 
+    ## Windows
     if 'nt' == os.name:
         s += "\nplatform.win32_ver[1]() = %s" % platform.win32_ver()[1]
+
+    # Other Python/app packaging-related things
     s += "\nplatform.platform = %s" % platform.platform()
     s += "\nplatform.version = %s" % platform.version()
     s += "\nsys.argv = %s" % sys.argv
