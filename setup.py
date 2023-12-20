@@ -47,7 +47,8 @@ import bleachbit.General
 import bleachbit.FileUtilities
 
 APP_NAME = "BleachBit - Free space and maintain privacy"
-APP_DESCRIPTION = "BleachBit frees space and maintains privacy by quickly wiping files you don't need and didn't know you had. Supported applications include Edge, Firefox, Google Chrome, VLC, and many others."
+APP_DESCRIPTION = "BleachBit frees space and maintains privacy by quickly wiping files you don't need and didn't know you had." \
+                    " Supported applications include Edge, Firefox, Google Chrome, VLC, and many others."
 
 #
 # begin win32com.shell workaround for py2exe
@@ -269,7 +270,7 @@ def run_setup():
           download_url="https://www.bleachbit.org/download",
           license="GPLv3",
           url=bleachbit.APP_URL,
-          platforms='Linux and Windows; Python v2.6 and 2.7; GTK v3.12+',
+          platforms='Linux and Windows; Python v2.6 and 2.7; GTK v3.12+', # Quite... old. What to change to?
           packages=['bleachbit', 'bleachbit.markovify'],
           **args)
 

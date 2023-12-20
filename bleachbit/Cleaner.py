@@ -37,13 +37,14 @@ from bleachbit import Command, FileUtilities, Memory, Special
 import warnings
 warnings.simplefilter("ignore", Warning)
 try:
-    from bleachbit.GuiBasic import Gtk, Gdk
-    HAVE_GTK = Gdk.get_default_root_window() is not None
+    import wx
 except (ImportError, RuntimeError, ValueError) as e:
     # ImportError happens when GTK is not installed.
     # RuntimeError can happen when X is not available (e.g., cron, ssh).
     # ValueError seen on BleachBit 3.0 with GTK 3 (GitHub issue 685)
-    HAVE_GTK = False
+    HAVE_WX = False
+else:
+    HAVE_WX = True
 
 
 if 'posix' == os.name:
@@ -322,7 +323,7 @@ class System(Cleaner):
         # options for GTK+
         #
 
-        if HAVE_GTK:
+        if HAVE_WX:
             self.add_option('clipboard', _('Clipboard'), _(
                 'The desktop environment\'s clipboard used for copy and paste operations'))
 
@@ -457,6 +458,7 @@ class System(Cleaner):
             ru_fn = os.path.expanduser("~/.recently-used")
             if os.path.lexists(ru_fn):
                 yield Command.Delete(ru_fn)
+                
             # GNOME 2.26 (as seen on Ubuntu 9.04) will retain the list
             # in memory if it is simply deleted, so it must be shredded
             # (or at least truncated).
@@ -467,10 +469,12 @@ class System(Cleaner):
             #
             # https://bugzilla.gnome.org/show_bug.cgi?id=591404
 
-            def gtk_purge_items():
-                """Purge GTK items"""
-                Gtk.RecentManager().get_default().purge_items()
-                yield 0
+            # def gtk_purge_items():
+            #     """Purge GTK items"""
+            #     Gtk.RecentManager().get_default().purge_items()
+            #     yield 0
+            
+            # Whatever wxPython seems not to have that function.
 
             xbel_pathnames = [
                     '~/.recently-used.xbel',
@@ -480,9 +484,11 @@ class System(Cleaner):
                 for path2 in glob.iglob(os.path.expanduser(path1)):
                     if os.path.lexists(path2):
                         yield Command.Shred(path2)
-            if HAVE_GTK:
-                # Use the Function to skip when in preview mode
-                yield Command.Function(None, gtk_purge_items, _('Recent documents list'))
+            
+            # Check for impacts
+            # if HAVE_WX:
+            #     # Use the Function to skip when in preview mode
+            #     yield Command.Function(None, gtk_purge_items, _('Recent documents list'))
 
         if 'posix' == os.name and 'rotated_logs' == option_id:
             for path in Unix.rotated_logs():
@@ -536,11 +542,11 @@ class System(Cleaner):
                 yield Command.Delete(filename)
 
         # clipboard
-        if HAVE_GTK and 'clipboard' == option_id:
+        if HAVE_WX and 'clipboard' == option_id:
             def clear_clipboard():
-                clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
-                clipboard.set_text(' ', 1)
-                clipboard.clear()
+                clipboard = wx.TheClipboard.Open()
+                clipboard.SetData(wx.TextDataObject(' '))
+                clipboard.Close()
                 return 0
             yield Command.Function(None, clear_clipboard, _('Clipboard'))
 

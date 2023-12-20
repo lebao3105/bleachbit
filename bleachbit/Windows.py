@@ -68,66 +68,6 @@ if 'win32' == sys.platform:
 
 logger = logging.getLogger(__name__)
 
-
-# TODO: Check for references then make them use wx functions
-
-def browse_file(_, title):
-    """Ask the user to select a single file.  Return full path"""
-    try:
-        ret = win32gui.GetOpenFileNameW(None,
-                                        Flags=win32con.OFN_EXPLORER
-                                        | win32con.OFN_FILEMUSTEXIST
-                                        | win32con.OFN_HIDEREADONLY,
-                                        Title=title)
-    except pywintypes.error as e:
-        logger = logging.getLogger(__name__)
-        if 0 == e.winerror:
-            logger.debug('browse_file(): user cancelled')
-        else:
-            logger.exception('exception in browse_file()')
-        return None
-    return ret[0]
-
-
-def browse_files(_, title):
-    """Ask the user to select files.  Return full paths"""
-    try:
-        # The File parameter is a hack to increase the buffer length.
-        ret = win32gui.GetOpenFileNameW(None,
-                                        File='\x00' * 10240,
-                                        Flags=win32con.OFN_ALLOWMULTISELECT
-                                        | win32con.OFN_EXPLORER
-                                        | win32con.OFN_FILEMUSTEXIST
-                                        | win32con.OFN_HIDEREADONLY,
-                                        Title=title)
-    except pywintypes.error as e:
-        if 0 == e.winerror:
-            logger.debug('browse_files(): user cancelled')
-        else:
-            logger.exception('exception in browse_files()')
-        return None
-    _split = ret[0].split('\x00')
-    if 1 == len(_split):
-        # only one filename
-        return _split
-    dirname = _split[0]
-    pathnames = [os.path.join(dirname, fname) for fname in _split[1:]]
-    return pathnames
-
-
-def browse_folder(_, title):
-    """Ask the user to select a folder.  Return full path."""
-    flags = 0x0010 #SHBrowseForFolder path input
-    pidl = shell.SHBrowseForFolder(None, None, title, flags)[0]
-    if pidl is None:
-        # user cancelled
-        return None
-    fullpath = shell.SHGetPathFromIDListW(pidl)
-    return fullpath
-
-
-# END TODO File/folder picker checks
-
 def check_dll_hijacking(window=None):
     """Check for possible DLL search-order hijacking
 
@@ -146,17 +86,17 @@ def check_dll_hijacking(window=None):
     logger.error(msg)
     if window:
         from bleachbit.GuiBasic import message_dialog
-        from gi.repository import Gtk
+        from wx import ICON_WARNING, OK_DEFAULT
         message_dialog(
             window,
             msg,
-            Gtk.MessageType.WARNING,
-            Gtk.ButtonsType.OK,
-            title=_('Warning'))
+            ICON_WARNING,
+            OK_DEFAULT,
+            _('Warning'))
     sys.exit(1)
 
 
-def cleanup_nonce():
+def cleanup_nonce(): # Marked for a check
     """On exit, clean up GTK junk files"""
     for fn in glob.glob(os.path.expandvars('%TEMP%\gdbus-nonce-file-*')):
         logger.debug('cleaning GTK nonce file: %s', fn)
@@ -264,10 +204,10 @@ def delete_updates():
         General.run_external(args)
         return 0
 
+    import win32serviceutil
     services = {}
     all_services = ('wuauserv', 'cryptsvc', 'bits', 'msiserver')
     for service in all_services:
-        import win32serviceutil
         services[service] = win32serviceutil.QueryServiceStatus(service)[
             1] == 4
         logger.debug('Windows service {} has current state: {}'.format(
