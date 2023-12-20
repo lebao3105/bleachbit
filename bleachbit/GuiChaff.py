@@ -26,11 +26,11 @@ GUI for making chaff
 
 from bleachbit import _
 from bleachbit.Chaff import download_models, generate_emails, generate_2600, have_models
+from bleachbit.GuiBasic import XRCLoader, message_dialog
 
-from gi.repository import Gtk, GLib
 import logging
 import os
-
+import wx
 
 logger = logging.getLogger(__name__)
 
@@ -50,97 +50,44 @@ def make_files_thread(file_count, inspiration, output_folder, delete_when_finish
     on_progress(1.0, is_done=True)
 
 
-class ChaffDialog(Gtk.Dialog):
+class ChaffDialog(XRCLoader):
 
     """Present the dialog to make chaff"""
 
     def __init__(self, parent):
-        self._make_dialog(parent)
-
-    def _make_dialog(self, parent):
-        """Make the main dialog"""
-# TRANSLATORS: BleachBit creates digital chaff like that is like the
-# physical chaff airplanes use to protect themselves from radar-guided
-# missiles. For more explanation, see the online documentation.
-        Gtk.Dialog.__init__(self, _("Make chaff"), parent)
-        Gtk.Dialog.set_modal(self,True)
-        self.set_border_width(5)
-        box = self.get_content_area()
-
-        label = Gtk.Label(
-            _("Make randomly-generated messages inspired by documents."))
-        box.add(label)
-
-        inspiration_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-
-        # TRANSLATORS: Inspiration is a choice of documents from which random
-        # text will be generated.
-        inspiration_box.add(Gtk.Label(_("Inspiration")))
-        self.inspiration_combo = Gtk.ComboBoxText()
-        self.inspiration_combo_options = (
-            _('2600 Magazine'), _("Hillary Clinton's emails"))
-        for combo_option in self.inspiration_combo_options:
-            self.inspiration_combo.append_text(combo_option)
-        self.inspiration_combo.set_active(0)  # Set default
-        inspiration_box.add(self.inspiration_combo)
-        box.add(inspiration_box)
-
-        spin_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        spin_box.add(Gtk.Label(_("Number of files")))
-        adjustment = Gtk.Adjustment(100, 1, 99999, 1, 1000, 0)
-        self.file_count = Gtk.SpinButton(adjustment=adjustment)
-        spin_box.add(self.file_count)
-        box.add(spin_box)
-
-        folder_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        folder_box.add(Gtk.Label(_("Select destination folder")))
-        self.choose_folder_button = Gtk.FileChooserButton()
-        self.choose_folder_button.set_action(
-            Gtk.FileChooserAction.SELECT_FOLDER)
+        
+        # TRANSLATORS: BleachBit creates digital chaff like that is like the
+        # physical chaff airplanes use to protect themselves from radar-guided
+        # missiles. For more explanation, see the online documentation.
+        super().__init__(parent, app_makechaff_filename)
+        
+        self.dialog: wx.Dialog = self.loadObject("ChaffDlg", "wxDialog")
+        childs = self.dialog.GetChildren()
+        self.inspiration_combo: wx.Choice = childs[2]
+        self.file_count: wx.SpinCtrl = childs[4]
+        self.choose_folder_button: wx.DirPickerCtrl = childs[6]
+        self.when_finished_combo: wx.Choice = childs[8]
+        self.progressbar: wx.Gauge = childs[9]
+        self.make_button: wx.Button = childs[10]
+        
         import tempfile
-        self.choose_folder_button.set_filename(tempfile.gettempdir())
-        folder_box.add(self.choose_folder_button)
-        box.add(folder_box)
-
-        delete_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        delete_box.add(Gtk.Label(_("When finished")))
-        self.when_finished_combo = Gtk.ComboBoxText()
-        self.combo_options = (
-            _('Delete without shredding'), _('Do not delete'))
-        for combo_option in self.combo_options:
-            self.when_finished_combo.append_text(combo_option)
-        self.when_finished_combo.set_active(0)  # Set default
-        delete_box.add(self.when_finished_combo)
-        box.add(delete_box)
-
-        self.progressbar = Gtk.ProgressBar()
-        box.add(self.progressbar)
-        self.progressbar.hide()
-
-        self.make_button = Gtk.Button(_("Make files"))
-        self.make_button.connect('clicked', self.on_make_files)
-        box.add(self.make_button)
+        self.choose_folder_button.SetPath(tempfile.gettempdir())
 
     def download_models_gui(self):
         """Download models and return whether successful as boolean"""
         def on_download_error(msg, msg2):
-            dialog = Gtk.MessageDialog(self, 0, Gtk.MessageType.ERROR,
-                                       Gtk.ButtonsType.CANCEL, msg)
-            dialog.format_secondary_text(msg2)
-            dialog.run()
-            dialog.destroy()
+            return message_dialog(self.dialog, msg2, buttons=wx.CANCEL | wx.OK, title=msg)
         return download_models(on_error=on_download_error)
 
     def download_models_dialog(self):
         """Download models"""
-        dialog = Gtk.MessageDialog(self, 0, Gtk.MessageType.QUESTION,
-                                   Gtk.ButtonsType.OK_CANCEL, _("Download data needed for chaff generator?"))
-        response = dialog.run()
+        response = message_dialog(self.dialog, "", wx.ICON_QUESTION, wx.OK | wx.CANCEL,
+                                  _("Download data needed for chaff generator?"))
         ret = None
-        if response == Gtk.ResponseType.OK:
+        if response == wx.ID_OK:
             # User wants to download
             ret = self.download_models_gui()  # True if successful
-        elif response == Gtk.ResponseType.CANCEL:
+        elif response == wx.ID_CANCEL:
             ret = False
         dialog.destroy()
         return ret
@@ -152,10 +99,8 @@ class ChaffDialog(Gtk.Dialog):
         delete_when_finished = self.when_finished_combo.get_active() == 0
         inspiration = self.inspiration_combo.get_active()
         if not output_dir:
-            dialog = Gtk.MessageDialog(self, 0, Gtk.MessageType.ERROR,
-                                       Gtk.ButtonsType.CANCEL, _("Select destination folder"))
-            dialog.run()
-            dialog.destroy()
+            message_dialog(self.dialog, _("Select destination folder"),
+                           buttons=wx.CANCEL)
             return
 
         if not have_models():
