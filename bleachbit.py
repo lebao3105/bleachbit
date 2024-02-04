@@ -55,6 +55,7 @@ if os.name == 'nt':
 if 1 == len(sys.argv):
     import bleachbit.GUI
     app = bleachbit.GUI.Bleachbit()
+    app.WindInit()
     app.mainFrame.Show()
     sys.exit(app.MainLoop())
 else:

@@ -30,7 +30,7 @@
           <help></help>
         </object>
         <object class="wxMenuItem" name="m_menuItem5">
-          <label>__Make Chaff</label>
+          <label>_Make Chaff</label>
           <accel></accel>
           <help></help>
         </object>
@@ -105,12 +105,10 @@
         <object class="unknown" name="m_treeListCtrl1"/>
       </object>
       <object class="sizeritem">
-        <flag>wxALL|wxEXPAND</flag>
+        <flag>wxEXPAND | wxALL</flag>
         <border>5</border>
         <option>1</option>
-        <object class="wxHtmlWindow" name="m_htmlWin1">
-          <style>wxHW_SCROLLBAR_AUTO</style>
-        </object>
+        <object class="unknown" name="m_scintilla1"/>
       </object>
     </object>
   </object>

@@ -8,8 +8,7 @@ BleachBit cleans files to free disk space and to maintain privacy.
 
 ## Running from source
 
-To run BleachBit without installation, unpack the tarball and then run these
-commands:
+To run BleachBit without installation, get the soure code and then run these commands:
 
     make -C po local # build translations
     python3 bleachbit.py
@@ -20,7 +19,7 @@ Then, select some options, and click Preview.  Review the files, toggle options 
 
 For information regarding the command line interface, run:
 
-     python3 bleachbit.py --help
+    python3 bleachbit.py --help
 
 Read more about [running from source](https://docs.bleachbit.org/dev/running-from-source-code.html).
 

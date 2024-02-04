@@ -172,9 +172,6 @@ for __icon in __icons:
 def findXRCPath(name: str):
     ret = os.path.join(bleachbit_exe_path, 'data', name)
     if os.path.isfile(ret) and system_cleaners_dir:
-        # Works on Linux
-        ret = os.path.abspath(
-            os.path.join(system_cleaners_dir, '../{name}'))
         if not os.path.isfile(ret):
             logger.error(f'unknown location for {name} - cannot make the GUI')
             return

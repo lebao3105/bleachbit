@@ -19,13 +19,13 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
-GTK graphical user interface
+wxPython graphical user interface
 """
 
 from bleachbit import GuiBasic
 from bleachbit import Cleaner, FileUtilities
-from bleachbit import _, APP_NAME, appicon_path, portable_mode, windows10_theme_path
-from bleachbit.Options import options
+from bleachbit import _, APP_NAME, appicon_path, portable_mode
+from bleachbit.Options import options, init_configuration
 
 # Now that the configuration is loaded, honor the debug preference there.
 from bleachbit.Log import set_root_log_level
@@ -71,166 +71,216 @@ def notify(msg):
     ).Show(10000)
 
 
-class Bleachbit(wx.App):
-    _window = None
+class Bleachbit(wx.App, GuiBasic.XRCLoader):
+    mainFrame = None # Replaces _window
+    guilog = None # Replaces gtklog
     _shred_paths = None
     _auto_exit = False
-    
-    # GUI things
-    Res: wx.xrc.XmlResource # Load the xrc file
-    mainFrame: wx.Frame
-    m_menu2: wx.Menu # "More options" menu, I'm just lazy to rename it
-    m_menu3: wx.Menu # "Help" menu
-    m_toolBar1: wx.ToolBar
-    m_treeListCtrl1: wx.dataview.TreeListCtrl # Clean options
-    m_htmlWin1: wx.html.HtmlWindow # Logging widget (next to the clean options tree)
 
     def __init__(self, uac=True, shred_paths=None, auto_exit=False):
-        
-        def txtLocalize(match_obj: re.Match[str]): return _(match_obj.group(1))
 
         wx.App.__init__(self)
-
-        self._init_windows_misc(auto_exit, shred_paths, uac)
+        GuiBasic.XRCLoader.__init__(self, None, bleachbit.app_window_filename)
+        self.SetClassName(APP_NAME)
         
-        if auto_exit:
-            # This is used for automated testing of whether the GUI can start.
-            # It is called from assert_execute_console() in windows/setup_py2exe.py
-            self._auto_exit = True        
+        # This is used for automated testing of whether the GUI can start.
+        # It is called from assert_execute_console() in windows/setup_py2exe.py
+        self._auto_exit = auto_exit      
 
-        if shred_paths:
-            self._shred_paths = shred_paths
+        self._shred_paths = shred_paths
 
         if os.name == 'nt':
             # clean up nonce files https://github.com/bleachbit/bleachbit/issues/858
             import atexit
             atexit.register(Windows.cleanup_nonce)
-        
-        # Hey man, here's a GUI class below!
-        # Setup the translation for the XRC code
-        with open(app_window_filename, "r", encoding="utf-8") as f:
-            xrc_data = f.read()
-        
-        xrc_data = re.sub("_(['\"](.*?)['\"])", txtLocalize, xrc_data)
-        xrc_data = xrc_data.encode("utf8")
-        
-        self.Res = wx.xrc.XmlResource()
-        self.Res.LoadFromBuffer(xrc_data)
-        
-        self.mainFrame = self.Res.LoadObject(None, "MainFrame", "wxFrame")
-        self.m_menu2 = self.mainFrame.GetMenuBar().GetMenu(0)
-        self.m_menu3 = self.mainFrame.GetMenuBar().GetMenu(1)
-        self.m_toolBar1 = self.mainFrame.GetToolBar()
-        self.m_treeListCtrl1 = self.mainFrame.GetChildren()[0]
-        self.m_htmlWin1 = self.mainFrame.GetChildren()[1]
-        
-        self.SetTopWindow(self.mainFrame)
 
         # Do some startup checks
         from bleachbit.General import startup_check
         startup_check()
+        
+        # Setup logging (redirect output to a window)
+        from bleachbit.Log import GUILoggerHandler, DelayLog
+        self.guilog = GUILoggerHandler(self.append_text)
+        logging.getLogger('bleachbit').addHandler(self.guilog)
+        
+        if isinstance(sys.stderr, DelayLog):
+            for msg in sys.stderr.read():
+                self.append_text(msg)
+            # if stderr was redirected - keep that
+            sys.stderr = self.guilog
+        
+        # Reset options if they are corrupted
+        if options.is_corrupt():
+            logger.error(
+                _('Resetting the configuration file because it is corrupt: %s'),
+                bleachbit.options_file)
+            init_configuration()
+        
+        wx.CallAfter(self.cb_refresh_operations)
+        
+    def WindInit(self):
+        self.mainFrame: wx.Frame = self.loadObject('MainFrame', 'wxFrame')
+        
+        screen = wx.DisplaySize()
+        self.mainFrame.SetSize(width=min(screen[0], 800),
+                               height=min(screen[1], 600))
+        
+        if os.path.exists(appicon_path):
+            self.mainFrame.SetIcon(wx.Icon(appicon_path))
+        
+        opts_menu = self.mainFrame.GetMenuBar().GetMenu(0)
+        help_menu = self.mainFrame.GetMenuBar().GetMenu(1)
+        self.tree = self.mainFrame.GetChildren()[0]
+        self.textbuffer = self.mainFrame.GetChildren()[1]
+        
+        actions = [(self.cb_shred_file, 0), (self.cb_shred_folder, 1), (self.cb_shred_clipboard, 2),
+                   (self.cb_wipe_free_space, 3), (self.cb_make_chaff, 4), (self.cb_shred_quit, 5),
+                   (self.quit, 7), (self.cb_preferences_dialog, 10), (self.get_system_information_dialog, 12),
+                   (self.cb_help, 13), (self.get_about_dialog, 14)]
+        
+        for callback, pos in actions:
+            if pos < 10:
+                self.mainFrame.Bind(wx.EVT_MENU, callback, opts_menu.FindItemByPosition(pos))
+            else:
+                self.mainFrame.Bind(wx.EVT_MENU, callback, help_menu.FindItemByPosition(pos - 10))
+        
+        if os.name == 'nt': Windows.check_dll_hijacking(self.mainFrame)
+        
+        self.ShowSplashScreen()
+        self.SetTopWindow(self.mainFrame)
+        self.mainFrame.Centre()
+        self.mainFrame.Show()
+        
+        wx.CallAfter(self.cb_refresh_options)
 
-    def _init_windows_misc(self, auto_exit, shred_paths, uac):
-        application_id_suffix = ''
-        is_context_menu_executed = auto_exit and shred_paths
-        if not os.name == 'nt':
-            return ''
-        if Windows.elevate_privileges(uac):
-            # privileges escalated in other process
-            sys.exit(0)
-
-        if is_context_menu_executed:
-            # When we have a running application and executing the Windows
-            # context menu command we start a new process with new application_id.
-            # That is because the command line arguments of the context menu command
-            # are not passed to the already running instance.
-            application_id_suffix = 'ContextMenuShred'
-        return application_id_suffix
-
-    def build_app_menu(self):
-        """Build the application menu
-
-        On Linux with GTK 3.24, this code is necessary but not sufficient for
-        the menu to work. The headerbar code is also needed.
-
-        On Windows with GTK 3.18, this cde is sufficient for the menu to work.
+    def ShowSplashScreen(self):
         """
+        Shows a splash screen on Windows.
+        """
+        if os.name != 'nt': return # I don't know why this on GTK...
+        font_conf_file = Windows.get_font_conf_file()
+        
+        if not os.path.exists(font_conf_file):
+            return logger.error(f'No fonts.conf file: {font_conf_file}')
+        
+        if not Windows.has_fontconfig_cache(font_conf_file):
+            Windows.splash_thread.start()
 
-        builder = Gtk.Builder()
-        builder.add_from_file(bleachbit.app_menu_filename)
-        menu = builder.get_object('app-menu')
-        self.set_app_menu(menu)
+    def shred_paths(self, paths, shred_settings=False):
+        """
+        Shred files or folders
+        When shred_settings=True: returns the user opition as a boolean.
+        """
+        # create a temporary cleaner object
+        backends['_gui'] = Cleaner.create_simple_cleaner(paths)
 
-        # set up mappings between <attribute name="action"> in app-menu.ui and methods in this class
-        actions = {'shredFiles': self.cb_shred_file,
-                   'shredFolders': self.cb_shred_folder,
-                   'shredClipboard': self.cb_shred_clipboard,
-                   'wipeFreeSpace': self.cb_wipe_free_space,
-                   'makeChaff': self.cb_make_chaff,
-                   'shredQuit': self.cb_shred_quit,
-                   'preferences': self.cb_preferences_dialog,
-                   'systemInformation': self.system_information_dialog,
-                   'help': self.cb_help,
-                   'about': self.about}
+        # preview and confirm
+        operations = {'_gui': ['files']}
+        self.preview_or_run_operations(False, operations)
 
-        for action_name, callback in actions.items():
-            action = Gio.SimpleAction.new(action_name, None)
-            action.connect('activate', callback)
-            self.add_action(action)
+        if self._confirm_delete(False, shred_settings):
+            # delete
+            self.preview_or_run_operations(True, operations)
+            if shred_settings:
+                return True
 
-    def cb_help(self, action, param):
+        if self._auto_exit:
+            wx.CallAfter(self.quit)
+
+        # user aborted
+        return False
+    
+    def append_text(self, text, tag=None, __iter=None, scroll=True):
+        """Add some text to the main log"""
+        if self.textbuffer is None:
+            # textbuffer was destroyed.
+            return
+        if not __iter:
+            __iter = self.textbuffer.get_end_iter()
+        if tag:
+            self.textbuffer.insert_with_tags_by_name(__iter, text, tag)
+        else:
+            self.textbuffer.insert(__iter, text)
+        # Scroll to end.  If the command is run directly instead of
+        # through the idle loop, it may only scroll most of the way
+        # as seen on Ubuntu 9.04 with Italian and Spanish.
+        if scroll:
+            wx.CallAfter(lambda: self.textbuffer is not None and
+                          self.textview.scroll_mark_onscreen(
+                              self.textbuffer.get_insert()))
+    
+    def update_log_level(self):
+        """Is the log level changed via the preferences."""
+        self.guilog.update_log_level()
+    
+    """
+    Event callbacks
+    """
+    
+    def cb_refresh_operations(self):
+        """Callback to refresh the list of cleaners"""
+        # Is this the first time in this session?
+        if not hasattr(self, 'recognized_cleanerml') and not self._auto_exit:
+            from bleachbit import RecognizeCleanerML
+            RecognizeCleanerML.RecognizeCleanerML()
+            self.recognized_cleanerml = True
+        # reload cleaners from disk
+        # self.view.expand_all()
+        # self.progressbar.show()
+        # rc = register_cleaners(self.update_progress_bar,
+        #                        self.cb_register_cleaners_done)
+        # wx.CallAfter(rc.__next__)
+        # return False
+
+    def cb_help(self, event):
         """Callback for help"""
-        GuiBasic.open_url(bleachbit.help_contents_url, self._window)
+        GuiBasic.open_url(bleachbit.help_contents_url, self.mainFrame)
 
-    def cb_make_chaff(self, action, param):
+    def cb_make_chaff(self, event):
         """Callback to make chaff"""
         from bleachbit.GuiChaff import ChaffDialog
-        cd = ChaffDialog(self._window)
+        cd = ChaffDialog(self.mainFrame)
         cd.run()
 
-    def cb_shred_file(self, action, param):
+    def cb_shred_file(self, event):
         """Callback for shredding a file"""
 
         # get list of files
-        paths = GuiBasic.browse_files(self._window, _("Choose files to shred"))
+        paths = GuiBasic.browse_files(self.mainFrame, _('Choose files to shred'))
         if not paths:
             return
-        GUI.shred_paths(self._window, paths)
+        self.shred_paths(self.mainFrame, paths)
 
-    def cb_shred_folder(self, action, param):
+    def cb_shred_folder(self, event):
         """Callback for shredding a folder"""
 
-        paths = GuiBasic.browse_folder(self._window,
-                                       _("Choose folder to shred"),
+        paths = GuiBasic.browse_folder(self.mainFrame,
+                                       _('Choose folder to shred'),
                                        multiple=True,
                                        stock_button=_('_Delete'))
         if not paths:
             return
-        GUI.shred_paths(self._window, paths)
+        self.shred_paths(self.mainFrame, paths)
 
-    def cb_shred_clipboard(self, action, param):
+    def cb_shred_clipboard(self, event):
         """Callback for menu option: shred paths from clipboard"""
-        clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
-        clipboard.request_targets(self.cb_clipboard_uri_received)
+        text_data = wx.TextDataObject()
+        if wx.TheClipboard.Open():
+            success = wx.TheClipboard.GetData(text_data)
+            wx.TheClipboard.Close()
+        if success:
+            return self.cb_clipboard_uri_received(text_data.GetText())
 
-    def cb_clipboard_uri_received(self, clipboard, targets, data):
+    def cb_clipboard_uri_received(self, clipboard: str):
         """Callback for when URIs are received from clipboard"""
-        shred_paths = None
-        if Gdk.atom_intern_static_string('text/uri-list') in targets:
-            # Linux
-            shred_uris = clipboard.wait_for_contents(
-                Gdk.atom_intern_static_string('text/uri-list')).get_uris()
-            shred_paths = FileUtilities.uris_to_paths(shred_uris)
-        elif Gdk.atom_intern_static_string('FileNameW') in targets:
-            # Windows
-            # Use non-GTK+ functions because because GTK+ 2 does not work.
-            shred_paths = Windows.get_clipboard_paths()
+        # Needs a test
+        shred_paths = FileUtilities.uris_to_paths(clipboard)
         if shred_paths:
-            GUI.shred_paths(self._window, shred_paths)
+            self.shred_paths(self.mainFrame, shred_paths)
         else:
             logger.warning(_('No paths found in clipboard.'))
 
-    def cb_shred_quit(self, action, param):
+    def cb_shred_quit(self, event):
         """Shred settings (for privacy reasons) and quit"""
         # build a list of paths to delete
         paths = []
@@ -246,7 +296,7 @@ class Bleachbit(wx.App):
             paths.append(bleachbit.options_dir)
 
         # prompt the user to confirm
-        if not GUI.shred_paths(self._window, paths, shred_settings=True):
+        if not self.shred_paths(self.mainFrame, paths, shred_settings=True):
             logger.debug('user aborted shred')
             # aborted
             return
@@ -257,12 +307,12 @@ class Bleachbit(wx.App):
         # the files are deleted.
         #
         # Rebuild a minimal bleachbit.ini when quitting
-        GLib.idle_add(self.quit, None, None, True,
-                      priority=GObject.PRIORITY_LOW)
+        # GLib.idle_add(self.quit, None, None, True,
+        #               priority=GObject.PRIORITY_LOW)
 
-    def cb_wipe_free_space(self, action, param):
+    def cb_wipe_free_space(self, event):
         """callback to wipe free space in arbitrary folder"""
-        path = GuiBasic.browse_folder(self._window,
+        path = GuiBasic.browse_folder(self.mainFrame,
                                       _("Choose a folder"),
                                       multiple=False, stock_button=_('_OK'))
         if not path:
@@ -273,20 +323,17 @@ class Bleachbit(wx.App):
 
         # execute
         operations = {'_gui': ['free_disk_space']}
-        self._window.preview_or_run_operations(True, operations)
+        self.mainFrame.preview_or_run_operations(True, operations)
 
-    def get_preferences_dialog(self):
-        return self._window.get_preferences_dialog()
-
-    def cb_preferences_dialog(self, action, param):
+    def cb_preferences_dialog(self, event):
         """Callback for preferences dialog"""
-        pref = self.get_preferences_dialog()
+        pref = PreferencesDialog(self.mainFrame, self.cb_refresh_operations)
         pref.run()
 
         # In case the user changed the log level...
-        GUI.update_log_level(self._window)
+        self.update_log_level()
 
-    def get_about_dialog(self):
+    def get_about_dialog(self, event):
         info = wx.adv.AboutDialogInfo()
         info.SetName(APP_NAME)
         info.SetVersion(bleachbit.APP_VERSION)
@@ -313,73 +360,41 @@ class Bleachbit(wx.App):
         
         return wx.adv.AboutBox(info, self.mainFrame)
 
-    # def about(self, _action, _param):
-    #     """Create and show the about dialog"""
-    #     dialog = self.get_about_dialog()
-    #     dialog.run()
-    #     dialog.destroy()
+    def quit(self, evt=None, init_settings=False):
+        if init_settings: init_configuration()
+        self.mainFrame.Destroy()
 
-    def do_startup(self):
-        Gtk.Application.do_startup(self)
-        self.build_app_menu()
-
-    def quit(self, _action=None, _param=None, init_configuration=False):
-        if init_configuration:
-            bleachbit.Options.init_configuration()
-        self._window.destroy()
-
-    def get_system_information_dialog(self):
+    def get_system_information_dialog(self, event):
         """Show system information dialog"""
-        # dialog = Gtk.Dialog(_("System information"), self._window)
-        # dialog.set_default_size(600, 400)
-        # txtbuffer = Gtk.TextBuffer()
-        # from bleachbit import SystemInformation
-        # txt = SystemInformation.get_system_information()
-        # txtbuffer.set_text(txt)
-        # textview = Gtk.TextView.new_with_buffer(txtbuffer)
-        # textview.set_editable(False)
-        # swindow = Gtk.ScrolledWindow()
-        # swindow.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
-        # swindow.add(textview)
-        # dialog.vbox.pack_start(swindow, True, True, 0)
-        # dialog.add_buttons(Gtk.STOCK_COPY, 100,
-        #                    Gtk.STOCK_CLOSE, Gtk.ResponseType.CLOSE)
-        # return (dialog, txt)
         from bleachbit import SystemInformation
         dialog = wx.Dialog(self.mainFrame,
                            title=_("System infomation"),
                            size=(600, 400))
+        
+        sizer = wx.BoxSizer()
         stxt = wx.ScrolledWindow(dialog)
         txt = SystemInformation.get_system_information()
-        textview = wx.StaticText(parent, label=txt)
+        textview = wx.StaticText(dialog, label=txt)
         stxt.AddChild(textview)
-        # TODO : Get help from wxFormBuilder
-        return (dialog, txt)
-
-    # def system_information_dialog(self, _action, _param):
-    #     dialog, txt = self.get_system_information_dialog()
-    #     dialog.ShowModal()
-    #     while True:
-    #         rc = dialog.run()
-    #         if rc != 100:
-    #             break
-    #         clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
-    #         clipboard.set_text(txt, -1)
-    #     dialog.destroy()
-
-    def do_activate(self):
-        if not self._window:
-            self._window = GUI(
-                application=self, title=APP_NAME, auto_exit=self._auto_exit)
-        if 'nt' == os.name:
-            Windows.check_dll_hijacking(self._window)
-        self._window.present()
-        if self._shred_paths:
-            GLib.idle_add(GUI.shred_paths, self._window, self._shred_paths, priority=GObject.PRIORITY_LOW)
-            # When we shred paths and auto exit with the Windows Explorer context menu command we close the
-            # application in GUI.shred_paths, because if it is closed from here there are problems.
-            # Most probably this is something related with how GTK handles idle quit calls.
-        elif self._auto_exit:
-            GLib.idle_add(self.quit,
-                          priority=GObject.PRIORITY_LOW)
-            print('Success')
+        
+        bottombar = wx.StdDialogButtonSizer()
+        copybtn = wx.Button(dialog, wx.ID_COPY)
+        
+        def copyText(evt):
+            if wx.TheClipboard.Open():
+                wx.TheClipboard.SetData(wx.TextDataObject(txt))
+                wx.TheClipboard.Close()
+                
+        copybtn.Bind(wx.EVT_BUTTON, copyText)
+        
+        bottombar.AddButton(copybtn)
+        bottombar.Realize()
+        
+        sizer.Add(stxt, 1, wx.EXPAND | wx.ALL, 5)
+        sizer.Add(bottombar, 0, wx.EXPAND, 5)
+        
+        dialog.SetSizer(sizer)
+        dialog.Layout()
+        dialog.Centre()
+        
+        return dialog.ShowModal()

@@ -270,7 +270,7 @@ def run_setup():
           download_url="https://www.bleachbit.org/download",
           license="GPLv3",
           url=bleachbit.APP_URL,
-          platforms='Linux and Windows; Python v2.6 and 2.7; GTK v3.12+', # Quite... old. What to change to?
+          platforms='Linux and Windows; Python 3',
           packages=['bleachbit', 'bleachbit.markovify'],
           **args)
 

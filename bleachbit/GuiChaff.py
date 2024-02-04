@@ -24,7 +24,7 @@
 GUI for making chaff
 """
 
-from bleachbit import _
+from bleachbit import _, app_makechaff_filename
 from bleachbit.Chaff import download_models, generate_emails, generate_2600, have_models
 from bleachbit.GuiBasic import XRCLoader, message_dialog
 
@@ -84,20 +84,19 @@ class ChaffDialog(XRCLoader):
         response = message_dialog(self.dialog, "", wx.ICON_QUESTION, wx.OK | wx.CANCEL,
                                   _("Download data needed for chaff generator?"))
         ret = None
-        if response == wx.ID_OK:
-            # User wants to download
+        if response == wx.ID_OK: # User wants to download
             ret = self.download_models_gui()  # True if successful
         elif response == wx.ID_CANCEL:
             ret = False
-        dialog.destroy()
         return ret
 
     def on_make_files(self, widget):
         """Callback for make files button"""
-        file_count = self.file_count.get_value_as_int()
-        output_dir = self.choose_folder_button.get_filename()
-        delete_when_finished = self.when_finished_combo.get_active() == 0
-        inspiration = self.inspiration_combo.get_active()
+        file_count = self.file_count.GetIncrement()
+        output_dir = self.choose_folder_button.GetPath()
+        delete_when_finished = self.when_finished_combo.GetSelection() == 0
+        inspiration = self.inspiration_combo.GetSelection()
+        
         if not output_dir:
             message_dialog(self.dialog, _("Select destination folder"),
                            buttons=wx.CANCEL)
@@ -110,16 +109,17 @@ class ChaffDialog(XRCLoader):
         def _on_progress(fraction, msg, is_done):
             """Update progress bar from GLib main loop"""
             if msg:
-                self.progressbar.set_text(msg)
-            self.progressbar.set_fraction(fraction)
+                self.progressbar.SetLabelText(msg)
+            self.progressbar.SetValue(fraction)
+            self.progressbar.Update()
+            
             if is_done:
-                self.progressbar.hide()
-                self.make_button.set_sensitive(True)
+                self.progressbar.Hide()
+                self.make_button.Enable()
 
         def on_progress(fraction, msg=None, is_done=False):
             """Callback for progress bar"""
-            # Use idle_add() because threads cannot make GDK calls.
-            GLib.idle_add(_on_progress, fraction, msg, is_done)
+            wx.CallAfter(_on_progress, fraction, msg, is_done)
 
         msg = _('Generating files')
         logger.info(msg)
@@ -136,4 +136,4 @@ class ChaffDialog(XRCLoader):
 
     def run(self):
         """Run the dialog"""
-        self.show_all()
+        self.dialog.ShowModal()

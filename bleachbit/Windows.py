@@ -50,7 +50,7 @@ import xml.dom.minidom
 
 from decimal import Decimal
 
-if 'win32' == sys.platform:
+if sys.platform == 'win32':
     import winreg
     import pywintypes
     import win32api
@@ -184,19 +184,28 @@ def delete_registry_key(parent_key, really_delete):
 def delete_updates():
     """Returns commands for deleting Windows Updates files"""
     windir = os.path.expandvars('%windir%')
+    sysdrive = os.path.expandvars('%systemdrive%')
+    
     dirs = glob.glob(os.path.join(windir, '$NtUninstallKB*'))
-    dirs += [os.path.expandvars(r'%windir%\SoftwareDistribution')]
-    dirs += [os.path.expandvars(r'%windir%\SoftwareDistribution.old')]
-    dirs += [os.path.expandvars(r'%windir%\SoftwareDistribution.bak')]
-    dirs += [os.path.expandvars(r'%windir%\ie7updates')]
-    dirs += [os.path.expandvars(r'%windir%\ie8updates')]
-    dirs += [os.path.expandvars(r'%windir%\system32\catroot2')]
-    dirs += [os.path.expandvars(r'%systemdrive%\windows.old')]
-    dirs += [os.path.expandvars(r'%systemdrive%\$windows.~bt')]
-    dirs += [os.path.expandvars(r'%systemdrive%\$windows.~ws')]
-    if not dirs:
+    more = [f'{windir}\SoftwareDistribution',
+             f'{windir}\SoftwareDistribution.old',
+             f'{windir}\SoftwareDistribution.bak',
+             f'{windir}\ie7updates',
+             f'{windir}\ie8updates',
+             f'{windir}\system32\catroot2',
+             f'{sysdrive}\windows.old',
+             f'{sysdrive}\$windows.~bt',
+             f'{sysdrive}\$windows.~ws']
+
+    for path in more:
+        if os.path.exists(path):
+            more.remove(path)
+    
+    if not (dirs and more):
         # if nothing to delete, then also do not restart service
         return
+    else:
+        dirs += more
 
     args = []
 

@@ -83,7 +83,7 @@ def set_root_log_level(is_debug=False):
     root_logger.setLevel(logging.DEBUG if is_debug else logging.INFO)
 
 
-class GtkLoggerHandler(logging.Handler):
+class GUILoggerHandler(logging.Handler):
     def __init__(self, append_text):
         logging.Handler.__init__(self)
         self.append_text = append_text
