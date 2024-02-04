@@ -1,9 +1,5 @@
 # BleachBit
 
-> This is a working-in-progress (WIP) port of BleachBit to use wxPython rather
-> than GTK 3, in order to make macOS support. Subjects to change.
-> Currently it's NOT runnable yet, as the main GUI is not fully ported to wx.
-
 BleachBit cleans files to free disk space and to maintain privacy.
 
 ## Running from source
@@ -22,6 +18,28 @@ For information regarding the command line interface, run:
     python3 bleachbit.py --help
 
 Read more about [running from source](https://docs.bleachbit.org/dev/running-from-source-code.html).
+
+## About this wxPython port
+
+I made this port in order to make this work on macOS as well and help Windows users have a real system look without using any GTK theme (since it's not GTK on Windows anymore, it's Win32 with default build settings).
+
+The work is in progress, but I'm pretty alone here... This is a HUGE big project!
+
+What I have done (inside and outside [bleachbit/](bleachbit/)):
+
+* Patched system-dependant modules to not use GTK code if any
+* Ported dialogs (Make chaff, About, System infomation) to wxPython
+* Ported main window & GUI entrypoint to wxPython (not completed)
+* Ported all universal GUI functions to use wxPython and cross-platform solutions
+* Kept all strings for translation
+* Removed Windows theme for GTK as not needed anymore
+
+What I have not done:
+* Dependencies (bleachbit.spec)
+* Fully port Preferences and main window
+* Add macOS search paths
+
+For macOS search paths for the cleaner, I suggest you ask in forums, or look at programs such as iCleaner (for jailbroken device). Create a fork or message me about what did you find!
 
 ## Links
 

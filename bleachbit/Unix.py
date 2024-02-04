@@ -23,6 +23,7 @@
 Integration specific to Unix-like operating systems
 """
 
+import mimetypes
 import bleachbit
 from bleachbit import FileUtilities, General
 from bleachbit import _
