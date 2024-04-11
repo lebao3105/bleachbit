@@ -27,24 +27,25 @@ import os
 
 try:
     import wx
-    import wx.xrc
-except ModuleNotFoundError as e:
+except ModuleNotFoundError:
     print('*'*60)
     print('Please install wxPython')
-    print('May require additional build tools + GUI toolkit!')
+    print('May require additional build tools + GUI toolkit development files!')
     print('*'*60)
-    raise e
+    exit(1)
 
-if os.name == 'nt':
-    from bleachbit import Windows
+try:
+    import libtextworker
+except ModuleNotFoundError:
+    print('*'*60)
+    print('Please install libtextworker')
+    print('*'*60)
+    exit(1)
+else:
+    del libtextworker # Not used here
 
-
-def browse_folder(parent, title, multiple, stock_button):
+def browse_folder(parent, title, multiple: bool):
     """Ask the user to select a folder.  Return the full path or None."""
-
-    # if os.name == 'nt' and not os.getenv('BB_NATIVE'):
-    #     ret = Windows.browse_folder(parent, title)
-    #     return [ret] if multiple and not ret is None else ret
 
     chooser = wx.DirDialog(parent, title,
                            style=(wx.DD_DEFAULT_STYLE if not multiple
@@ -149,39 +150,3 @@ def open_url(url, parent_window=None, prompt=True):
     # open web browser
     import webbrowser
     webbrowser.open(url)
-
-# Taken from lebao3105's libtextworker
-# Used to load XRC code - which holds GUI designs
-class XRCLoader:
-    
-    def __init__(self, parent: wx.Window | None, file: str):
-        self.parent = parent
-        
-        # Setup translation
-        # Credit: https://wiki.wxpython.org/XRCAndI18N
-        
-        with open(file, encoding="utf-8") as f:
-            xrc_data = f.read()
-        
-        import re
-        
-        def txtLocalize(match_obj: re.Match[str]):
-            return _(match_obj.group(1))
-        
-        ## Replace texts with translated ones
-        xrc_data = re.sub("_(['\"](.*?)['\"])", txtLocalize, xrc_data)
-        xrc_data = xrc_data.encode("utf8")
-
-        # Call out the resource file, with translated strings
-        self.Res = wx.xrc.XmlResource()
-        self.Res.LoadFromBuffer(xrc_data)
-    
-    def loadObject(self, objname, objtype):
-        """
-        Load a XRC object.
-        Mainly used for calling the top-level widget (e.g wxFrame),
-            and not all widgets will work with this.
-        If this function is not usable, use children-communicate functions such as
-            GetSizer, GetChildren, wx.FindWindowBy*; or use wx.xrc.XRCCTRL.
-        """
-        return self.Res.LoadObject(self.parent, objname, objtype)

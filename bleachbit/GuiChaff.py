@@ -123,11 +123,8 @@ class ChaffDialog(XRCLoader):
 
         msg = _('Generating files')
         logger.info(msg)
-        self.progressbar.show()
-        self.progressbar.set_text(msg)
-        self.progressbar.set_show_text(True)
-        self.progressbar.set_fraction(0.0)
-        self.make_button.set_sensitive(False)
+        self.progressbar.Show()
+        self.progressbar.SetValue(0)
         import threading
         args = (file_count, inspiration, output_dir,
                 delete_when_finished, on_progress)

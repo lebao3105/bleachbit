@@ -35,11 +35,21 @@ What I have done (inside and outside [bleachbit/](bleachbit/)):
 * Removed Windows theme for GTK as not needed anymore
 
 What I have not done:
-* Dependencies (bleachbit.spec)
+* All packaging-related stuffs (so MUCH of FILES)
 * Fully port Preferences and main window
 * Add macOS search paths
 
 For macOS search paths for the cleaner, I suggest you ask in forums, or look at programs such as iCleaner (for jailbroken device). Create a fork or message me about what did you find!
+
+### FAQ
+
+Q: ETA?
+
+A: It's in /dev/null (no ETA) for now. Especially that I'm going to have a lot of things else to do this summer.
+
+Q: Is resolving packaging files (e.g bleachbit.spec) so hard?
+
+A: Yes. Look at bleachbit.spec and NSIS files for windows. It's a huge mess.
 
 ## Links
 
