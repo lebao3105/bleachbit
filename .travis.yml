@@ -22,8 +22,9 @@ before_install:
   - export VIRT_ROOT=/home/travis/virtualenv/python$TRAVIS_PYTHON_VERSION
   - export PKG_CONFIG_PATH=$VIRT_ROOT/lib/pkgconfig
 install:
-  - sudo apt-get install gir1.2-gtk-3.0 gir1.2-notify-0.7 libgirepository1.0-dev libxml2-utils
-  - pip install PyGObject chardet
+  - sudo apt-get install libgtk-3-dev gir1.2-notify-0.7 libgirepository1.0-dev libxml2-utils
+  - pip install attrdict3 chardet
+  - pip install wxpython
 # coveralls.io
   - pip install coveralls requests[security]
 # install mock

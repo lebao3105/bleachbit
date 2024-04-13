@@ -51,21 +51,31 @@ class PreferencesDialog:
         self.cb_refresh_operations = cb_refresh_operations
 
         self.parent = parent
-        self.dialog = wx.Dialog(parent, title=_("Preferences"))
-        self.dialog.SetSize(300, 200)
+        self.dialog = wx.Dialog(parent, style=wx.RESIZE_BORDER | wx.CAPTION | wx.CLOSE_BOX, title=_("Preferences"))
+        self.dialog.SetMinSize((600, 400))
+        sz = wx.BoxSizer(wx.VERTICAL)
 
         # Construct a notebook widget
         # It must be made as a class variable for place other widgets
         # inside the notebook (and sets the notebook as their 'parent' as well)
-        self.notebook = wx.Notebook()
+        self.notebook = wx.Notebook(self.dialog)
         self.notebook.AddPage(self.__general_page(), _("General"), True)
         self.notebook.AddPage(self.__locations_page(LOCATIONS_CUSTOM), _("Custom"))
         self.notebook.AddPage(self.__drives_page(), _("Drives"))
         if 'posix' == os.name:
             self.notebook.AddPage(self.__languages_page(), _("Languages"))
         self.notebook.AddPage(self.__locations_page(LOCATIONS_WHITELIST), _("Whitelist"))
+        sz.Add(self.notebook, 1, wx.EXPAND|wx.ALL, 5)
 
         self.refresh_operations = False
+
+        dlgBox = wx.StdDialogButtonSizer()
+        dlgBox.AddButton(wx.Button(self.dialog, wx.ID_CLOSE))
+        dlgBox.Realize()
+        sz.Add(dlgBox, 0, wx.EXPAND, 5)
+
+        self.dialog.SetSizer(sz)
+        self.dialog.Layout()
 
     def __del__(self):
         """Destructor called when the dialog is closing"""
@@ -103,7 +113,7 @@ class PreferencesDialog:
             cb_updates.Bind(wx.EVT_CHECKBOX, lambda evt: self.__toggle_callback('check_online_updates'))
             cb_updates.SetToolTip(wx.ToolTip(
                 _("If an update is found, you will be given the option to view information about it.  Then, you may manually download and install the update.")))
-            vbox.Add(cb_updates, flag=wx.ALL | wx.EXPAND)
+            vbox.Add(cb_updates, 0, wx.ALL, 5)
 
             updates_box = wx.BoxSizer(wx.VERTICAL)
 
@@ -111,16 +121,16 @@ class PreferencesDialog:
             self.cb_beta.SetValue(options.get('check_beta'))
             self.cb_beta.SetCanFocus(options.get('check_online_updates'))
             self.cb_beta.Bind(wx.EVT_CHECKBOX, lambda evt: self.__toggle_callback('check_beta'))
-            updates_box.Add(self.cb_beta, flag=wx.ALL | wx.EXPAND)
+            updates_box.Add(self.cb_beta, 0, wx.ALL, 5)
 
             if 'nt' == os.name:
                 self.cb_winapp2 = wx.CheckBox(panel, label=_("Download and update cleaners from community (winapp2.ini)"))
                 self.cb_winapp2.SetValue(options.get('update_winapp2'))
                 self.cb_winapp2.SetCanFocus(options.get('check_online_updates'))
                 self.cb_winapp2.Bind(wx.EVT_CHECKBOX, lambda evt: self.__toggle_callback('update_winapp2'))
-                updates_box.Add(self.cb_winapp2, flag=wx.ALL | wx.EXPAND)
+                updates_box.Add(self.cb_winapp2, 0, wx.ALL, 5)
 
-            vbox.Add(updates_box, flag=wx.ALL | wx.EXPAND)
+            vbox.Add(updates_box, 0, wx.ALL, 5)
 
         # TRANSLATORS: This means to hide cleaners which would do
         # nothing.  For example, if Firefox were never used on
@@ -129,7 +139,7 @@ class PreferencesDialog:
         cb_auto_hide = wx.CheckBox(panel, label=_("Hide irrelevant cleaners"))
         cb_auto_hide.SetValue(options.get('auto_hide'))
         cb_auto_hide.Bind(wx.EVT_CHECKBOX, lambda evt: self.__toggle_callback('auto_hide'))
-        vbox.Add(cb_auto_hide, flag=wx.ALL | wx.EXPAND)
+        vbox.Add(cb_auto_hide, 0, wx.ALL, 5)
 
         # TRANSLATORS: Overwriting is the same as shredding.  It is a way
         # to prevent recovery of the data. You could also translate
@@ -139,46 +149,50 @@ class PreferencesDialog:
         cb_shred.Bind(wx.EVT_CHECKBOX, lambda evt: self.__toggle_callback('shred'))
         cb_shred.SetToolTip(wx.ToolTip(
             _("Overwriting is ineffective on some file systems and with certain BleachBit operations.  Overwriting is significantly slower.")))
-        vbox.Add(cb_shred, flag=wx.ALL | wx.EXPAND)
+        vbox.Add(cb_shred, 0, wx.ALL, 5)
 
         # Close the application after cleaning is complete.
         cb_exit = wx.CheckBox(panel, label=_("Exit after cleaning"))
         cb_exit.SetValue(options.get('exit_done'))
         cb_exit.Bind(wx.EVT_CHECKBOX, lambda evt: self.__toggle_callback('exit_done'))
-        vbox.Add(cb_exit, flag=wx.ALL | wx.EXPAND)
+        vbox.Add(cb_exit, 0, wx.ALL, 5)
 
         # Disable delete confirmation message.
         cb_popup = wx.CheckBox(panel, label=_("Confirm before delete"))
         cb_popup.SetValue(options.get('delete_confirmation'))
         cb_popup.Bind(wx.EVT_CHECKBOX, lambda evt: self.__toggle_callback('delete_confirmation'))
-        vbox.Add(cb_popup, flag=wx.ALL | wx.EXPAND)
+        vbox.Add(cb_popup, 0, wx.ALL, 5)
 
         # Use base 1000 over 1024?
         cb_units_iec = wx.CheckBox(panel, 
             label=_("Use IEC sizes (1 KiB = 1024 bytes) instead of SI (1 kB = 1000 bytes)"))
         cb_units_iec.SetValue(options.get("units_iec"))
         cb_units_iec.Bind(wx.EVT_CHECKBOX, lambda evt: self.__toggle_callback('units_iec'))
-        vbox.Add(cb_units_iec, flag=wx.ALL | wx.EXPAND)
+        vbox.Add(cb_units_iec, 0, wx.ALL, 5)
 
         # Remember window geometry (position and size)
         self.cb_geom = wx.CheckBox(panel, label=_("Remember window geometry"))
         self.cb_geom.SetValue(options.get("remember_geometry"))
         self.cb_geom.Bind(wx.EVT_CHECKBOX, lambda evt: self.__toggle_callback('remember_geometry'))
-        vbox.Add(self.cb_geom, flag=wx.ALL | wx.EXPAND)
+        vbox.Add(self.cb_geom, 0, wx.ALL, 5)
 
         # Debug logging
         cb_debug = wx.CheckBox(panel, label=_("Show debug messages"))
         cb_debug.SetValue(options.get("debug"))
         cb_debug.Bind(wx.EVT_CHECKBOX, lambda evt: self.__toggle_callback('debug'))
-        vbox.Add(cb_debug, flag=wx.ALL | wx.EXPAND)
+        vbox.Add(cb_debug, 0, wx.ALL, 5)
 
         # KDE context menu shred option
         cb_kde_shred_menu_option = wx.CheckBox(panel, label=_("Add shred context menu option (KDE Plasma specific)"))
         cb_kde_shred_menu_option.SetValue(options.get("kde_shred_menu_option"))
         cb_kde_shred_menu_option.Bind(wx.EVT_CHECKBOX, lambda evt: self.__toggle_callback('kde_shred_menu_option'))
-        vbox.Add(cb_kde_shred_menu_option, flag=wx.ALL | wx.EXPAND)
+        vbox.Add(cb_kde_shred_menu_option, 0, wx.ALL, 5)
 
-        return vbox
+        panel.SetSizer(vbox)
+        panel.Layout()
+        panel.Center()
+    
+        return panel
 
     def __drives_page(self):
         """Return widget containing the drives page"""
@@ -205,26 +219,24 @@ class PreferencesDialog:
         vbox = wx.BoxSizer(wx.VERTICAL)
 
         # TRANSLATORS: 'free' means 'unallocated'
-        notice = wx.StaticText(self.dialog, label=_(
+        notice = wx.StaticText(panel, label=_(
             "Choose a writable folder for each drive for which to overwrite free space."))
-        vbox.Add(notice, flag=wx.ALL | wx.EXPAND)
+        vbox.Add(notice, 0, wx.ALL|wx.ALIGN_CENTER_HORIZONTAL, 5)
 
         pathnames = options.get_list('shred_drives')
         # Changes from the old GTK version: wxListBox has wxLB_SORT flag which will sort
         # the list for us, so no need to run sorted() anymore
 
-        liststore = wx.ListBox(self.notebook, choices=pathnames,
+        liststore = wx.ListBox(panel, choices=pathnames,
                                style=wx.LB_SINGLE | wx.LB_HSCROLL | wx.LB_NEEDED_SB | wx.LB_SORT)
 
-        vbox.Add(liststore, flag=wx.ALL | wx.EXPAND)
+        vbox.Add(liststore, 1, wx.ALL|wx.EXPAND, 5)
 
-        # TRANSLATORS: In the preferences dialog, this button adds a path to
-        # the list of paths
-        button_add = wx.StaticText(panel, label=_p('button', 'Add'))
+        # Add page buttons
+        button_add = wx.Button(panel, wx.ID_ADD)
         button_add.Bind(wx.EVT_BUTTON, add_drive_cb)
-        # TRANSLATORS: In the preferences dialog, this button removes a path
-        # from the list of paths
-        button_remove = wx.StaticText(panel, label=_p('button', 'Remove'))
+
+        button_remove = wx.Button(panel, wx.ID_REMOVE)
         button_remove.Bind(wx.EVT_BUTTON, remove_drive_cb)
 
         button_box = wx.BoxSizer()
@@ -233,62 +245,51 @@ class PreferencesDialog:
         vbox.Add(button_box, flag=wx.ALL | wx.EXPAND)
         
         panel.SetSizer(vbox)
+        panel.Layout()
+        panel.Center()
 
         return panel
 
     def __languages_page(self):
         """Return widget containing the languages page"""
 
-        def preserve_toggled_cb(cell, path, liststore):
+        def preserve_toggled_cb(evt):
             """Callback for toggling the 'preserve' column"""
-            __iter = liststore.get_iter_from_string(path)
-            value = not liststore.get_value(__iter, 0)
-            liststore.set(__iter, 0, value)
-            langid = liststore[path][1]
-            options.set_language(langid, value)
+            item = liststore.GetItem(evt.index)
+            options.set_language(liststore.GetItemText(item), liststore.IsItemChecked(item))
 
+        panel = wx.Panel(self.notebook)
         vbox = wx.BoxSizer(wx.VERTICAL)
+
         notice = wx.StaticText(panel, label=_("All languages will be deleted except those checked."))
-        vbox.Add(notice,  flag=wx.ALL | wx.EXPAND)
+        vbox.Add(notice, 0, wx.ALL|wx.ALIGN_CENTER_HORIZONTAL, 5)
 
-        # populate data
-        liststore = Gtk.ListStore('gboolean', str, str)
-        for lang, native in sorted(Unix.Locales.native_locale_names.items()):
-            liststore.append([(options.get_language(lang)), lang, native])
+        liststore = wx.ListCtrl(panel)
+        liststore.EnableCheckBoxes(True)
+        liststore.Bind(wx.EVT_LIST_ITEM_CHECKED, preserve_toggled_cb)
+        liststore.Bind(wx.EVT_LIST_ITEM_UNCHECKED, preserve_toggled_cb)
 
-        # create treeview
-        treeview = Gtk.TreeView.new_with_model(liststore)
+        # create column views and populate items
+        liststore.InsertColumn(0, _("Code"))
+        liststore.InsertColumn(1, _("Name"))
 
-        # create column views
-        self.renderer0 = Gtk.CellRendererToggle()
-        self.renderer0.set_property('activatable', True)
-        self.renderer0.Bind(wx.EVT_CHECKBOX, preserve_toggled_cb, liststore)
-        self.column0 = Gtk.TreeViewColumn(
-            _("Preserve"), self.renderer0, active=0)
-        treeview.append_column(self.column0)
+        for lang, native in sorted(Unix.locales.native_locale_names.items()):
+            index = liststore.InsertItem(liststore.GetItemCount(), lang)
+            liststore.SetItem(index, 1, native)
+            liststore.CheckItem(index, options.get_language(lang))
 
-        self.renderer1 = Gtk.CellRendererText()
-        self.column1 = Gtk.TreeViewColumn(_("Code"), self.renderer1, text=1)
-        treeview.append_column(self.column1)
-
-        self.renderer2 = Gtk.CellRendererText()
-        self.column2 = Gtk.TreeViewColumn(_("Name"), self.renderer2, text=2)
-        treeview.append_column(self.column2)
-        treeview.set_search_column(2)
+        vbox.Add(liststore, 1, wx.ALL|wx.EXPAND, 5)
 
         # finish
-        swindow = Gtk.ScrolledWindow()
-        swindow.set_overlay_scrolling(False)
-        swindow.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
-        swindow.set_size_request(300, 200)
-        swindow.add(treeview)
-        vbox.Add(swindow, flag=wx.ALL | wx.EXPAND)
-        return vbox
+        panel.SetSizer(vbox)
+        panel.Layout()
+        panel.Center()
+        return panel
 
     def __locations_page(self, page_type):
         """Return a widget containing a list of files and folders"""
 
-        def add_whitelist_file_cb(button):
+        def add_file_cb(evt):
             """Callback for adding a file"""
             title = _("Choose a file")
             pathname = GuiBasic.browse_file(self.parent, title)
@@ -298,81 +299,74 @@ class PreferencesDialog:
                         logger.warning(
                             "'%s' already exists in whitelist", pathname)
                         return
-                liststore.append([_('File'), pathname])
+                liststore.SetItem(liststore.InsertItem(liststore.GetItemCount(), _("File")), 1, pathname)
                 pathnames.append(['file', pathname])
                 options.set_whitelist_paths(pathnames)
 
-        def add_whitelist_folder_cb(button):
+        def add_folder_cb(evt):
             """Callback for adding a folder"""
             title = _("Choose a folder")
-            pathname = GuiBasic.browse_folder(self.parent, title,
-                                              multiple=False, stock_button=Gtk.STOCK_ADD)
+            pathname = GuiBasic.browse_folder(self.parent, title, multiple=False)
             if pathname:
                 for this_pathname in pathnames:
                     if pathname == this_pathname[1]:
                         logger.warning(
                             "'%s' already exists in whitelist", pathname)
                         return
-                liststore.append([_('Folder'), pathname])
+                liststore.SetItem(liststore.InsertItem(liststore.GetItemCount(), _("Folder")), 1, pathname)
                 pathnames.append(['folder', pathname])
                 options.set_whitelist_paths(pathnames)
 
-        def remove_whitelist_path_cb(button):
+        def remove_path_cb(evt):
             """Callback for removing a path"""
-            treeselection = treeview.get_selection()
-            (model, _iter) = treeselection.get_selected()
-            if None == _iter:
-                # nothing selected
-                return
-            pathname = model[_iter][1]
-            liststore.remove(_iter)
+            selection = liststore.GetItem(evt.index)
             for this_pathname in pathnames:
-                if this_pathname[1] == pathname:
+                if this_pathname[1] == liststore.GetItemText(selection):
                     pathnames.remove(this_pathname)
                     options.set_whitelist_paths(pathnames)
+                    liststore.DeleteItem(selection)
 
-        def add_custom_file_cb(button):
-            """Callback for adding a file"""
-            title = _("Choose a file")
-            pathname = GuiBasic.browse_file(self.parent, title)
-            if pathname:
-                for this_pathname in pathnames:
-                    if pathname == this_pathname[1]:
-                        logger.warning(
-                            "'%s' already exists in whitelist", pathname)
-                        return
-                liststore.append([_('File'), pathname])
-                pathnames.append(['file', pathname])
-                options.set_custom_paths(pathnames)
+        # def add_custom_file_cb(evt):
+        #     """Callback for adding a file"""
+        #     pathname = GuiBasic.browse_file(self.parent, _("Choose a file"))
+        #     if pathname:
+        #         for this_pathname in pathnames:
+        #             if pathname == this_pathname[1]:
+        #                 logger.warning(
+        #                     "'%s' already exists in whitelist", pathname)
+        #                 return
+        #         liststore.SetItem(liststore.InsertItem(liststore.GetItemCount(), _("File")), 1, pathname)
+        #         pathnames.append(['file', pathname])
+        #         options.set_custom_paths(pathnames)
 
-        def add_custom_folder_cb(button):
-            """Callback for adding a folder"""
-            title = _("Choose a folder")
-            pathname = GuiBasic.browse_folder(self.parent, title,
-                                              multiple=False, stock_button=Gtk.STOCK_ADD)
-            if pathname:
-                for this_pathname in pathnames:
-                    if pathname == this_pathname[1]:
-                        logger.warning(
-                            "'%s' already exists in whitelist", pathname)
-                        return
-                liststore.append([_('Folder'), pathname])
-                pathnames.append(['folder', pathname])
-                options.set_custom_paths(pathnames)
+        # def add_custom_folder_cb(button):
+        #     """Callback for adding a folder"""
+        #     title = _("Choose a folder")
+        #     pathname = GuiBasic.browse_folder(self.parent, title,
+        #                                       multiple=False, stock_button=Gtk.STOCK_ADD)
+        #     if pathname:
+        #         for this_pathname in pathnames:
+        #             if pathname == this_pathname[1]:
+        #                 logger.warning(
+        #                     "'%s' already exists in whitelist", pathname)
+        #                 return
+        #         liststore.append([_('Folder'), pathname])
+        #         pathnames.append(['folder', pathname])
+        #         options.set_custom_paths(pathnames)
 
-        def remove_custom_path_cb(button):
-            """Callback for removing a path"""
-            treeselection = treeview.get_selection()
-            (model, _iter) = treeselection.get_selected()
-            if None == _iter:
-                # nothing selected
-                return
-            pathname = model[_iter][1]
-            liststore.remove(_iter)
-            for this_pathname in pathnames:
-                if this_pathname[1] == pathname:
-                    pathnames.remove(this_pathname)
-                    options.set_custom_paths(pathnames)
+        # def remove_custom_path_cb(button):
+        #     """Callback for removing a path"""
+        #     treeselection = treeview.get_selection()
+        #     (model, _iter) = treeselection.get_selected()
+        #     if None == _iter:
+        #         # nothing selected
+        #         return
+        #     pathname = model[_iter][1]
+        #     liststore.remove(_iter)
+        #     for this_pathname in pathnames:
+        #         if this_pathname[1] == pathname:
+        #             pathnames.remove(this_pathname)
+        #             options.set_custom_paths(pathnames)
 
         panel = wx.Panel(self.notebook)
         vbox = wx.BoxSizer(wx.VERTICAL)
@@ -382,18 +376,26 @@ class PreferencesDialog:
             pathnames = options.get_whitelist_paths()
         elif LOCATIONS_CUSTOM == page_type:
             pathnames = options.get_custom_paths()
-        liststore = Gtk.ListStore(str, str)
+
+        liststore = wx.ListCtrl(panel)
+
+        # create column views
+        liststore.InsertColumn(0, _("Type"))
+        liststore.InsertColumn(1, _("Path"))
+
+        # populate datas
         for paths in pathnames:
-            type_code = paths[0]
+            type_code: str = paths[0]
             type_str = None
-            if type_code == 'file':
-                type_str = _('File')
-            elif type_code == 'folder':
-                type_str = _('Folder')
-            else:
+            
+            if not type_code in ['file', 'folder']:
                 raise RuntimeError("Invalid type code: '%s'" % type_code)
+            else:
+                type_str = _(type_code.capitalize())
+
             path = paths[1]
-            liststore.append([type_str, path])
+            idx = liststore.InsertItem(liststore.GetItemCount(), type_str)
+            liststore.SetItem(idx, 1, path)
 
         if LOCATIONS_WHITELIST == page_type:
             # TRANSLATORS: "Paths" is used generically to refer to both files
@@ -401,64 +403,32 @@ class PreferencesDialog:
             notice = wx.StaticText(panel, label=_("These paths will not be deleted or modified."))
         elif LOCATIONS_CUSTOM == page_type:
             notice = wx.StaticText(panel, label=_("These locations can be selected for deletion."))
-        vbox.Add(notice,  flag=wx.ALL | wx.EXPAND)
 
-        # create treeview
-        treeview = Gtk.TreeView.new_with_model(liststore)
-
-        # create column views
-        self.renderer0 = Gtk.CellRendererText()
-        self.column0 = Gtk.TreeViewColumn(_("Type"), self.renderer0, text=0)
-        treeview.append_column(self.column0)
-
-        self.renderer1 = Gtk.CellRendererText()
-        # TRANSLATORS: In the tree view "Path" is used generically to refer to a
-        # file, a folder, or a pattern describing either
-        self.column1 = Gtk.TreeViewColumn(_("Path"), self.renderer1, text=1)
-        treeview.append_column(self.column1)
-        treeview.set_search_column(1)
-
-        # finish tree view
-        swindow = Gtk.ScrolledWindow()
-        swindow.set_overlay_scrolling(False)
-        swindow.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
-        swindow.set_size_request(300, 200)
-        swindow.add(treeview)
-
-        vbox.Add(swindow, flag=wx.ALL | wx.EXPAND)
+        vbox.Add(notice, 0, wx.ALL|wx.ALIGN_CENTER_HORIZONTAL, 5)
+        vbox.Add(liststore, 1, wx.ALL|wx.EXPAND, 5)
 
         # buttons that modify the list
-        button_add_file = wx.StaticText(panel, 
-            label=_p('button', 'Add file'))
-        if LOCATIONS_WHITELIST == page_type:
-            button_add_file.Bind(wx.EVT_BUTTON, add_whitelist_file_cb)
-        elif LOCATIONS_CUSTOM == page_type:
-            button_add_file.Bind(wx.EVT_BUTTON, add_custom_file_cb)
+        button_add_file = wx.Button(panel, label=_p('button', 'Add file'))
+        button_add_file.Bind(wx.EVT_BUTTON, add_file_cb)
 
-        button_add_folder = wx.StaticText(panel, 
-            label=_p('button', 'Add folder'))
-        if LOCATIONS_WHITELIST == page_type:
-            button_add_folder.Bind(wx.EVT_BUTTON, add_whitelist_folder_cb)
-        elif LOCATIONS_CUSTOM == page_type:
-            button_add_folder.Bind(wx.EVT_BUTTON, add_custom_folder_cb)
+        button_add_folder = wx.Button(panel, label=_p('button', 'Add folder'))
+        button_add_folder.Bind(wx.EVT_BUTTON, add_folder_cb)
 
-        button_remove = wx.StaticText(panel, label=_p('button', 'Remove'))
-        if LOCATIONS_WHITELIST == page_type:
-            button_remove.Bind(wx.EVT_BUTTON, remove_whitelist_path_cb)
-        elif LOCATIONS_CUSTOM == page_type:
-            button_remove.Bind(wx.EVT_BUTTON, remove_custom_path_cb)
+        button_remove = wx.Button(panel, label=_p('button', 'Remove'))
+        button_remove.Bind(wx.EVT_BUTTON, remove_path_cb)
 
-        button_box = Gtk.ButtonBox(orientation=Gtk.Orientation.HORIZONTAL)
-        button_box.set_layout(Gtk.ButtonBoxStyle.START)
-        button_box.Add(button_add_file, flag=wx.ALL | wx.EXPAND)
-        button_box.Add(button_add_folder, flag=wx.ALL | wx.EXPAND)
-        button_box.Add(button_remove, flag=wx.ALL | wx.EXPAND)
-        vbox.Add(button_box, flag=wx.ALL | wx.EXPAND)
+        button_box = wx.BoxSizer()
+        button_box.Add(button_add_file, 0, wx.ALL, 5)
+        button_box.Add(button_add_folder, 0, wx.ALL, 5)
+        button_box.Add(button_remove, 0, wx.ALL, 5)
+        vbox.Add(button_box, 0, wx.ALL | wx.EXPAND, 5)
 
         # return page
         panel.SetSizer(vbox)
+        panel.Layout()
+        panel.Center()
         return panel
 
     def run(self):
         """Run the dialog"""
-        return self.dialog.ShowModal()
+        return self.dialog.Show()

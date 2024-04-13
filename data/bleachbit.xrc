@@ -35,7 +35,7 @@
           <help></help>
         </object>
         <object class="wxMenuItem" name="m_menuItem6">
-          <label>S__hred Settings and Quit</label>
+          <label>S_hred Settings and Quit</label>
           <accel></accel>
           <help></help>
         </object>

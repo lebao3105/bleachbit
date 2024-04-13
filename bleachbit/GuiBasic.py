@@ -35,14 +35,14 @@ except ModuleNotFoundError:
     exit(1)
 
 try:
-    import libtextworker
+    from libtextworker.general import test_import
 except ModuleNotFoundError:
     print('*'*60)
-    print('Please install libtextworker')
+    print('Please correctly install libtextworker')
     print('*'*60)
     exit(1)
 else:
-    del libtextworker # Not used here
+    test_import("wx")
 
 def browse_folder(parent, title, multiple: bool):
     """Ask the user to select a folder.  Return the full path or None."""
@@ -84,12 +84,15 @@ def browse_files(parent, title):
 
 def delete_confirmation_dialog(parent, mention_preview, shred_settings=False):
     """Return boolean whether OK to delete files."""
+    
+    notice_text = ""
 
     if shred_settings:
         notice_text = _(
             "This function deletes all BleachBit settings and then quits the application. "
             "Use this to hide your use of BleachBit or to reset its settings. "
             "The next time you start BleachBit, the settings will initialize to default values.")
+        question_text = _("Are you sure want to shred all settings?")
 
     if mention_preview:
         question_text = _(
@@ -99,22 +102,16 @@ def delete_confirmation_dialog(parent, mention_preview, shred_settings=False):
         question_text = _(
             "Are you sure you want to permanently delete these files?")
         
-    ret = wx.MessageBox(notice_text, _("Delete confirmation"), wx.YES_NO | wx.ICON_WARNING, parent)
+    ret = wx.MessageBox(question_text + "\n" + notice_text, _("Delete confirmation"), wx.YES_NO | wx.ICON_WARNING, parent)
     
     return ret == wx.ID_YES
 
 
 def message_dialog(parent, msg, mtype=wx.ICON_ERROR, buttons=wx.OK_DEFAULT, title=None):
     """Convenience wrapper for wx.MessageDialog"""
-    
-    dialog = wx.MessageDialog(
-        parent, msg, title="" if not title else title,
-        style = buttons | mtype
-    )
-    
-    resp = dialog.ShowModal()
 
-    return resp
+    return wx.MessageDialog(parent, msg, "" if not title else title,
+                            style = buttons | mtype).ShowModal()
 
 
 def open_url(url, parent_window=None, prompt=True):

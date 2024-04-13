@@ -28,9 +28,11 @@ import os
 import re
 import sys
 import platform
+import wx
 
 from bleachbit import Log
 from configparser import RawConfigParser, NoOptionError
+from wx.lib.agw.advancedsplash import AdvancedSplash, AS_TIMEOUT, AS_CENTER_ON_SCREEN
 
 APP_VERSION = "4.6.1"
 APP_NAME = "BleachBit"
@@ -224,7 +226,7 @@ except:
         return msg
 
 try:
-    locale.bindtextdomain('bleachbit', locale_dir)
+    gettext.bindtextdomain('bleachbit', locale_dir)
 except AttributeError:
     if sys.platform.startswith('win'):
         try:
@@ -330,3 +332,20 @@ if hasattr(sys.modules['builtins'], 'ModuleNotFoundError'):
 else:
     class ModuleNotFoundError(Exception):
         pass
+
+#
+# Splash screen (cross-platform)
+#
+
+class SplashScreen(AdvancedSplash):
+
+    def __init__(this, parent, *args, **kwds):
+        logger.debug('Splash screen started')
+        folder_with_ico_file = 'share' if hasattr(sys, 'frozen') else 'windows'
+        filename = os.path.join(os.path.dirname(sys.argv[0]), folder_with_ico_file, 'bleachbit.ico')
+
+        icon = wx.Bitmap()
+        icon.LoadFile(filename)
+        
+        AdvancedSplash.__init__(this, parent, bitmap=icon,
+                                timeout=5000, agwStyle=AS_TIMEOUT | AS_CENTER_ON_SCREEN)

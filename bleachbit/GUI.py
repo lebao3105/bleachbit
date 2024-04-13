@@ -48,6 +48,8 @@ import wx.dataview
 import wx.html
 import wx.xrc
 
+from libtextworker.interface.wx.miscs import XMLBuilder
+
 if os.name == 'nt':
     from bleachbit import Windows
 
@@ -71,7 +73,7 @@ def notify(msg):
     ).Show(10000)
 
 
-class Bleachbit(wx.App, GuiBasic.XRCLoader):
+class Bleachbit(wx.App, XMLBuilder):
     mainFrame = None # Replaces _window
     guilog = None # Replaces gtklog
     _shred_paths = None
@@ -80,7 +82,7 @@ class Bleachbit(wx.App, GuiBasic.XRCLoader):
     def __init__(self, uac=True, shred_paths=None, auto_exit=False):
 
         wx.App.__init__(self)
-        GuiBasic.XRCLoader.__init__(self, None, bleachbit.app_window_filename)
+        XMLBuilder.__init__(self, None, bleachbit.app_window_filename)
         self.SetClassName(APP_NAME)
         
         # This is used for automated testing of whether the GUI can start.
@@ -151,20 +153,14 @@ class Bleachbit(wx.App, GuiBasic.XRCLoader):
         self.mainFrame.Centre()
         self.mainFrame.Show()
         
-        wx.CallAfter(self.cb_refresh_options)
+        wx.CallAfter(self.cb_refresh_operations)
 
     def ShowSplashScreen(self):
         """
         Shows a splash screen on Windows.
         """
-        if os.name != 'nt': return # I don't know why this on GTK...
-        font_conf_file = Windows.get_font_conf_file()
-        
-        if not os.path.exists(font_conf_file):
-            return logger.error(f'No fonts.conf file: {font_conf_file}')
-        
-        if not Windows.has_fontconfig_cache(font_conf_file):
-            Windows.splash_thread.start()
+        if os.name != 'nt': return # Probably we should use PNG on all platforms (splash screen now uses .ico)
+        bleachbit.SplashScreen(self.mainFrame).Show()
 
     def shred_paths(self, paths, shred_settings=False):
         """
@@ -296,7 +292,7 @@ class Bleachbit(wx.App, GuiBasic.XRCLoader):
             paths.append(bleachbit.options_dir)
 
         # prompt the user to confirm
-        if not self.shred_paths(self.mainFrame, paths, shred_settings=True):
+        if not self.shred_paths(paths, True):
             logger.debug('user aborted shred')
             # aborted
             return
@@ -372,10 +368,8 @@ class Bleachbit(wx.App, GuiBasic.XRCLoader):
                            size=(600, 400))
         
         sizer = wx.BoxSizer()
-        stxt = wx.ScrolledWindow(dialog)
         txt = SystemInformation.get_system_information()
-        textview = wx.StaticText(dialog, label=txt)
-        stxt.AddChild(textview)
+        textview = wx.TextCtrl(dialog, value=txt, style=wx.TE_MULTILINE | wx.TE_READONLY)
         
         bottombar = wx.StdDialogButtonSizer()
         copybtn = wx.Button(dialog, wx.ID_COPY)
@@ -390,7 +384,7 @@ class Bleachbit(wx.App, GuiBasic.XRCLoader):
         bottombar.AddButton(copybtn)
         bottombar.Realize()
         
-        sizer.Add(stxt, 1, wx.EXPAND | wx.ALL, 5)
+        sizer.Add(textview, 1, wx.EXPAND | wx.ALL, 5)
         sizer.Add(bottombar, 0, wx.EXPAND, 5)
         
         dialog.SetSizer(sizer)

@@ -35,9 +35,10 @@ What I have done (inside and outside [bleachbit/](bleachbit/)):
 * Removed Windows theme for GTK as not needed anymore
 
 What I have not done:
-* All packaging-related stuffs (so MUCH of FILES)
-* Fully port Preferences and main window
+* All packaging-related stuffs (so MUCH FILES)
+* Fully port ~~Preferences~~ (completed) and main window
 * Add macOS search paths
+* Update tests (they're a bunch of files)
 
 For macOS search paths for the cleaner, I suggest you ask in forums, or look at programs such as iCleaner (for jailbroken device). Create a fork or message me about what did you find!
 

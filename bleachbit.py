@@ -44,14 +44,6 @@ if 'posix' == os.name:
                 'See more about xhost at https://docs.bleachbit.org/doc/frequently-asked-questions.html'))
         sys.exit(1)
 
-if os.name == 'nt':
-    # change error handling to avoid popup with GTK 3
-    # https://github.com/bleachbit/bleachbit/issues/651
-    import win32api
-    import win32con
-    win32api.SetErrorMode(win32con.SEM_FAILCRITICALERRORS |
-                          win32con.SEM_NOGPFAULTERRORBOX | win32con.SEM_NOOPENFILEERRORBOX)
-
 if 1 == len(sys.argv):
     import bleachbit.GUI
     app = bleachbit.GUI.Bleachbit()
