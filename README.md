@@ -23,11 +23,11 @@ Read more about [running from source](https://docs.bleachbit.org/dev/running-fro
 
 I made this port in order to make this work on macOS as well and help Windows users have a real system look without using any GTK theme (since it's not GTK on Windows anymore, it's Win32 with default build settings).
 
-The work is in progress, but I'm pretty alone here... This is a HUGE big project!
+I'm pretty alone here... This is a HUGE big project!
 
 What I have done (inside and outside [bleachbit/](bleachbit/)):
 
-* Patched system-dependant modules to not use GTK code if any
+* Patched system-dependent modules to not use GTK code if any
 * Ported dialogs (Make chaff, About, System infomation) to wxPython
 * Ported main window & GUI entrypoint to wxPython (not completed)
 * Ported all universal GUI functions to use wxPython and cross-platform solutions
@@ -46,11 +46,15 @@ For macOS search paths for the cleaner, I suggest you ask in forums, or look at 
 
 Q: ETA?
 
-A: It's in /dev/null (no ETA) for now. Especially that I'm going to have a lot of things else to do this summer.
+A: It's in /dev/null (no ETA) for now. Especially that I'm going to have a lot of things else to do this summer. New: now I give up, no time for this anymore:(
 
 Q: Is resolving packaging files (e.g bleachbit.spec) so hard?
 
 A: Yes. Look at bleachbit.spec and NSIS files for windows. It's a huge mess.
+
+Q: Why making this?
+
+A: To make it work on macOS, natively using macOS UI toolkit (wxPython - Python wrapper of wxWidgets, which will do this), using macOS paths. GTK is not made for both Windows and macOS anyways.
 
 ## Links
 
