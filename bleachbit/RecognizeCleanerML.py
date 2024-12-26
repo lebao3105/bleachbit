@@ -142,7 +142,7 @@ class RecognizeCleanerML:
     def __init__(self, parent_window=None):
         self.parent_window = parent_window
         try:
-            self.salt = options.get('hashsalt')
+            self.salt = options.Get('hashsalt')
         except bleachbit.NoOptionError:
             self.salt = hashdigest(os.urandom(512))
             options.set('hashsalt', self.salt)

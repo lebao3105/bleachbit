@@ -27,3 +27,5 @@ windows/BleachBit*.zip
 *~
 *.bak
 *.swp
+
+.vs*

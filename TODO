@@ -1,0 +1,7 @@
+* NSIS:
+    - Found .PO support, gonna use it for translations
+    - Clean up install and uninstall lists
+* UNIX-like environments (e.g MSYS) support
+* Use string-format
+* Test about root check (UNIX)
+* Move all static variables to bleachbit/__init__.py

@@ -24,7 +24,7 @@
 Preferences dialog
 """
 
-from bleachbit import _, _p, online_update_notification_enabled
+from bleachbit import _, _p, online_update_notification_enabled, logger
 from bleachbit.Options import options
 from bleachbit import GuiBasic
 
@@ -34,10 +34,10 @@ import os
 
 if 'nt' == os.name:
     from bleachbit import Windows
-if 'posix' == os.name:
+else:
     from bleachbit import Unix
 
-logger = logging.getLogger(__name__)
+from libtextworker.interface.wx.actionrow import ActionRow
 
 LOCATIONS_WHITELIST = 1
 LOCATIONS_CUSTOM = 2
@@ -79,27 +79,29 @@ class PreferencesDialog:
 
     def __del__(self):
         """Destructor called when the dialog is closing"""
-        if self.refresh_operations:
-            # refresh the list of cleaners
-            self.cb_refresh_operations()
+        # if self.refresh_operations:
+        #     # refresh the list of cleaners
+        #     self.cb_refresh_operations()
 
     def __toggle_callback(self, path):
         """Callback function to toggle option"""
         options.toggle(path)
+
         if online_update_notification_enabled:
-            self.cb_beta.SetCanFocus(options.get('check_online_updates'))
-            if 'nt' == os.name: self.cb_winapp2.SetCanFocus( options.get('check_online_updates'))
+            self.cb_beta.SetCanFocus(options.Get('check_online_updates'))
+            if 'nt' == os.name: self.cb_winapp2.SetCanFocus( options.Get('check_online_updates'))
 
-        if 'auto_hide' == path:
-            self.refresh_operations = True
+        match path:
+            case 'auto_hide':
+                self.refresh_operations = True
+            
+            case 'debug':
+                from bleachbit.Log import set_root_log_level
+                set_root_log_level(options.Get('debug'))
 
-        if 'debug' == path:
-            from bleachbit.Log import set_root_log_level
-            set_root_log_level(options.get('debug'))
-
-        if 'kde_shred_menu_option' == path:
-            from bleachbit.DesktopMenuOptions import install_kde_service_menu_file
-            install_kde_service_menu_file()
+            case 'kde_shred_menu_option':
+                from bleachbit.DesktopMenuOptions import install_kde_service_menu_file
+                install_kde_service_menu_file()
 
     def __general_page(self):
         """Return a widget containing the general page"""
@@ -109,7 +111,7 @@ class PreferencesDialog:
 
         if online_update_notification_enabled:
             cb_updates = wx.CheckBox(panel, label= _("Check periodically for software updates via the Internet"))
-            cb_updates.SetValue(options.get('check_online_updates'))
+            cb_updates.SetValue(options.Get('check_online_updates'))
             cb_updates.Bind(wx.EVT_CHECKBOX, lambda evt: self.__toggle_callback('check_online_updates'))
             cb_updates.SetToolTip(wx.ToolTip(
                 _("If an update is found, you will be given the option to view information about it.  Then, you may manually download and install the update.")))
@@ -118,15 +120,15 @@ class PreferencesDialog:
             updates_box = wx.BoxSizer(wx.VERTICAL)
 
             self.cb_beta = wx.CheckBox(panel, label=_("Check for new beta releases"))
-            self.cb_beta.SetValue(options.get('check_beta'))
-            self.cb_beta.SetCanFocus(options.get('check_online_updates'))
+            self.cb_beta.SetValue(options.Get('check_beta'))
+            self.cb_beta.SetCanFocus(options.Get('check_online_updates'))
             self.cb_beta.Bind(wx.EVT_CHECKBOX, lambda evt: self.__toggle_callback('check_beta'))
             updates_box.Add(self.cb_beta, 0, wx.ALL, 5)
 
             if 'nt' == os.name:
                 self.cb_winapp2 = wx.CheckBox(panel, label=_("Download and update cleaners from community (winapp2.ini)"))
-                self.cb_winapp2.SetValue(options.get('update_winapp2'))
-                self.cb_winapp2.SetCanFocus(options.get('check_online_updates'))
+                self.cb_winapp2.SetValue(options.Get('update_winapp2'))
+                self.cb_winapp2.SetCanFocus(options.Get('check_online_updates'))
                 self.cb_winapp2.Bind(wx.EVT_CHECKBOX, lambda evt: self.__toggle_callback('update_winapp2'))
                 updates_box.Add(self.cb_winapp2, 0, wx.ALL, 5)
 
@@ -137,7 +139,7 @@ class PreferencesDialog:
         # this system, this option would hide Firefox to simplify
         # the list of cleaners.
         cb_auto_hide = wx.CheckBox(panel, label=_("Hide irrelevant cleaners"))
-        cb_auto_hide.SetValue(options.get('auto_hide'))
+        cb_auto_hide.SetValue(options.Get('auto_hide', convertTo=bool))
         cb_auto_hide.Bind(wx.EVT_CHECKBOX, lambda evt: self.__toggle_callback('auto_hide'))
         vbox.Add(cb_auto_hide, 0, wx.ALL, 5)
 
@@ -145,7 +147,7 @@ class PreferencesDialog:
         # to prevent recovery of the data. You could also translate
         # 'Shred files to prevent recovery.'
         cb_shred = wx.CheckBox(panel, label=_("Overwrite contents of files to prevent recovery"))
-        cb_shred.SetValue(options.get('shred'))
+        cb_shred.SetValue(options.Get('shred'))
         cb_shred.Bind(wx.EVT_CHECKBOX, lambda evt: self.__toggle_callback('shred'))
         cb_shred.SetToolTip(wx.ToolTip(
             _("Overwriting is ineffective on some file systems and with certain BleachBit operations.  Overwriting is significantly slower.")))
@@ -153,38 +155,38 @@ class PreferencesDialog:
 
         # Close the application after cleaning is complete.
         cb_exit = wx.CheckBox(panel, label=_("Exit after cleaning"))
-        cb_exit.SetValue(options.get('exit_done'))
+        cb_exit.SetValue(options.Get('exit_done'))
         cb_exit.Bind(wx.EVT_CHECKBOX, lambda evt: self.__toggle_callback('exit_done'))
         vbox.Add(cb_exit, 0, wx.ALL, 5)
 
         # Disable delete confirmation message.
         cb_popup = wx.CheckBox(panel, label=_("Confirm before delete"))
-        cb_popup.SetValue(options.get('delete_confirmation'))
+        cb_popup.SetValue(options.Get('delete_confirmation'))
         cb_popup.Bind(wx.EVT_CHECKBOX, lambda evt: self.__toggle_callback('delete_confirmation'))
         vbox.Add(cb_popup, 0, wx.ALL, 5)
 
         # Use base 1000 over 1024?
         cb_units_iec = wx.CheckBox(panel, 
             label=_("Use IEC sizes (1 KiB = 1024 bytes) instead of SI (1 kB = 1000 bytes)"))
-        cb_units_iec.SetValue(options.get("units_iec"))
+        cb_units_iec.SetValue(options.Get("units_iec"))
         cb_units_iec.Bind(wx.EVT_CHECKBOX, lambda evt: self.__toggle_callback('units_iec'))
         vbox.Add(cb_units_iec, 0, wx.ALL, 5)
 
         # Remember window geometry (position and size)
         self.cb_geom = wx.CheckBox(panel, label=_("Remember window geometry"))
-        self.cb_geom.SetValue(options.get("remember_geometry"))
+        self.cb_geom.SetValue(options.Get("remember_geometry"))
         self.cb_geom.Bind(wx.EVT_CHECKBOX, lambda evt: self.__toggle_callback('remember_geometry'))
         vbox.Add(self.cb_geom, 0, wx.ALL, 5)
 
         # Debug logging
         cb_debug = wx.CheckBox(panel, label=_("Show debug messages"))
-        cb_debug.SetValue(options.get("debug"))
+        cb_debug.SetValue(options.Get("debug"))
         cb_debug.Bind(wx.EVT_CHECKBOX, lambda evt: self.__toggle_callback('debug'))
         vbox.Add(cb_debug, 0, wx.ALL, 5)
 
         # KDE context menu shred option
         cb_kde_shred_menu_option = wx.CheckBox(panel, label=_("Add shred context menu option (KDE Plasma specific)"))
-        cb_kde_shred_menu_option.SetValue(options.get("kde_shred_menu_option"))
+        cb_kde_shred_menu_option.SetValue(options.Get("kde_shred_menu_option"))
         cb_kde_shred_menu_option.Bind(wx.EVT_CHECKBOX, lambda evt: self.__toggle_callback('kde_shred_menu_option'))
         vbox.Add(cb_kde_shred_menu_option, 0, wx.ALL, 5)
 
@@ -289,94 +291,63 @@ class PreferencesDialog:
     def __locations_page(self, page_type):
         """Return a widget containing a list of files and folders"""
 
+        pathnames: dict[str, list[str]]
+        if LOCATIONS_WHITELIST == page_type:
+            pathnames = options.whitelist_paths()
+            # TRANSLATORS: "Paths" is used generically to refer to both files
+            # and folders
+            notice = wx.StaticText(panel, label=_("These paths will not be deleted or modified."))
+        elif LOCATIONS_CUSTOM == page_type:
+            pathnames = options.custom_paths()
+            notice = wx.StaticText(panel, label=_("These locations can be selected for deletion."))
+
+        # FIXME: Remove duplicate codes
+
         def add_file_cb(evt):
             """Callback for adding a file"""
             title = _("Choose a file")
             pathname = GuiBasic.browse_file(self.parent, title)
             if pathname:
-                for this_pathname in pathnames:
-                    if pathname == this_pathname[1]:
-                        logger.warning(
-                            "'%s' already exists in whitelist", pathname)
-                        return
+                if pathname in pathnames['files']:
+                    logger.warning(f"'{pathname}' already exists in whitelist")
+                    return
+                
                 liststore.SetItem(liststore.InsertItem(liststore.GetItemCount(), _("File")), 1, pathname)
-                pathnames.append(['file', pathname])
-                options.set_whitelist_paths(pathnames)
+                pathnames['files'].append(pathname)
+                options.whitelist_paths = pathnames
 
         def add_folder_cb(evt):
             """Callback for adding a folder"""
             title = _("Choose a folder")
             pathname = GuiBasic.browse_folder(self.parent, title, multiple=False)
             if pathname:
-                for this_pathname in pathnames:
-                    if pathname == this_pathname[1]:
-                        logger.warning(
-                            "'%s' already exists in whitelist", pathname)
-                        return
+                if pathname in pathnames['files']:
+                    logger.warning(f"'{pathname}' already exists in whitelist")
+                    return
+
                 liststore.SetItem(liststore.InsertItem(liststore.GetItemCount(), _("Folder")), 1, pathname)
-                pathnames.append(['folder', pathname])
-                options.set_whitelist_paths(pathnames)
+                pathnames['folders'].append(pathname)
+                options.whitelist_paths = pathnames
+        
+        # End FIXME
 
         def remove_path_cb(evt):
             """Callback for removing a path"""
-            selection = liststore.GetItem(evt.index)
-            for this_pathname in pathnames:
-                if this_pathname[1] == liststore.GetItemText(selection):
-                    pathnames.remove(this_pathname)
-                    options.set_whitelist_paths(pathnames)
-                    liststore.DeleteItem(selection)
+            if liststore.GetSelectedItemCount() > 0:
+                selection = liststore.GetFirstSelected()
 
-        # def add_custom_file_cb(evt):
-        #     """Callback for adding a file"""
-        #     pathname = GuiBasic.browse_file(self.parent, _("Choose a file"))
-        #     if pathname:
-        #         for this_pathname in pathnames:
-        #             if pathname == this_pathname[1]:
-        #                 logger.warning(
-        #                     "'%s' already exists in whitelist", pathname)
-        #                 return
-        #         liststore.SetItem(liststore.InsertItem(liststore.GetItemCount(), _("File")), 1, pathname)
-        #         pathnames.append(['file', pathname])
-        #         options.set_custom_paths(pathnames)
+                while selection != -1:
 
-        # def add_custom_folder_cb(button):
-        #     """Callback for adding a folder"""
-        #     title = _("Choose a folder")
-        #     pathname = GuiBasic.browse_folder(self.parent, title,
-        #                                       multiple=False, stock_button=Gtk.STOCK_ADD)
-        #     if pathname:
-        #         for this_pathname in pathnames:
-        #             if pathname == this_pathname[1]:
-        #                 logger.warning(
-        #                     "'%s' already exists in whitelist", pathname)
-        #                 return
-        #         liststore.append([_('Folder'), pathname])
-        #         pathnames.append(['folder', pathname])
-        #         options.set_custom_paths(pathnames)
-
-        # def remove_custom_path_cb(button):
-        #     """Callback for removing a path"""
-        #     treeselection = treeview.get_selection()
-        #     (model, _iter) = treeselection.get_selected()
-        #     if None == _iter:
-        #         # nothing selected
-        #         return
-        #     pathname = model[_iter][1]
-        #     liststore.remove(_iter)
-        #     for this_pathname in pathnames:
-        #         if this_pathname[1] == pathname:
-        #             pathnames.remove(this_pathname)
-        #             options.set_custom_paths(pathnames)
+                    for key in pathnames:
+                        if selectedPath := liststore.GetItemText(selection, 1) in pathnames[key]:
+                            pathnames[key].remove(selectedPath)
+                            options.whitelist_paths = pathnames
+                            liststore.DeleteItem(selection)
+                    
+                    selection = liststore.GetNextSelected()
 
         panel = wx.Panel(self.notebook)
         vbox = wx.BoxSizer(wx.VERTICAL)
-
-        # load data
-        if LOCATIONS_WHITELIST == page_type:
-            pathnames = options.get_whitelist_paths()
-        elif LOCATIONS_CUSTOM == page_type:
-            pathnames = options.get_custom_paths()
-
         liststore = wx.ListCtrl(panel)
 
         # create column views
@@ -384,25 +355,18 @@ class PreferencesDialog:
         liststore.InsertColumn(1, _("Path"))
 
         # populate datas
-        for paths in pathnames:
-            type_code: str = paths[0]
-            type_str = None
+        for type_code in pathnames:
+            type_str: str
             
-            if not type_code in ['file', 'folder']:
-                raise RuntimeError("Invalid type code: '%s'" % type_code)
+            if not type_code in ['files', 'folders']:
+                raise RuntimeError(f"Invalid type code: '{type_code}'")
             else:
-                type_str = _(type_code.capitalize())
+                type_str = _(type_code[:-1].capitalize())
 
-            path = paths[1]
-            idx = liststore.InsertItem(liststore.GetItemCount(), type_str)
-            liststore.SetItem(idx, 1, path)
+            for i in range(len(pathnames[type_code])):
+                idx = liststore.InsertItem(liststore.GetItemCount(), type_str)
+                liststore.SetItem(idx, 1, pathnames[type_code][i])
 
-        if LOCATIONS_WHITELIST == page_type:
-            # TRANSLATORS: "Paths" is used generically to refer to both files
-            # and folders
-            notice = wx.StaticText(panel, label=_("These paths will not be deleted or modified."))
-        elif LOCATIONS_CUSTOM == page_type:
-            notice = wx.StaticText(panel, label=_("These locations can be selected for deletion."))
 
         vbox.Add(notice, 0, wx.ALL|wx.ALIGN_CENTER_HORIZONTAL, 5)
         vbox.Add(liststore, 1, wx.ALL|wx.EXPAND, 5)

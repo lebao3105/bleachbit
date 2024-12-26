@@ -93,7 +93,7 @@ class GUILoggerHandler(logging.Handler):
     def update_log_level(self):
         """Set the log level"""
         from bleachbit.Options import options
-        if options.get('debug'):
+        if options.Get('bleachbit', 'debug'):
             self.min_level = logging.DEBUG
         else:
             self.min_level = logging.WARNING

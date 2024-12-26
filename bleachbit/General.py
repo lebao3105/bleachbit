@@ -33,13 +33,13 @@ logger = logging.getLogger(__name__)
 #
 # XML
 #
-def boolstr_to_bool(value):
+def boolstr_to_bool(value: str) -> bool:
     """Convert a string boolean to a Python boolean"""
-    if 'true' == value.lower():
-        return True
-    if 'false' == value.lower():
-        return False
-    raise RuntimeError("Invalid boolean: '%s'" % value)
+
+    match value.lower():
+        case 'true': return True
+        case 'false': return False
+        case _ : raise RuntimeError("Invalid boolean: '%s'" % value)
 
 
 def getText(nodelist):
@@ -121,10 +121,12 @@ def run_external(args, stdout=None, env=None, clean_env=True):
     """Run external command and return (return code, stdout, stderr)"""
     logger.debug('running cmd ' + ' '.join(args))
     import subprocess
-    if stdout is None:
-        stdout = subprocess.PIPE
+    
+    if stdout is None: stdout = subprocess.PIPE
+
     kwargs = {}
     encoding = bleachbit.stdout_encoding
+
     if sys.platform == 'win32':
         # hide the 'DOS box' window
         import win32process
@@ -134,7 +136,8 @@ def run_external(args, stdout=None, env=None, clean_env=True):
         stui.wShowWindow = win32con.SW_HIDE
         kwargs['startupinfo'] = stui
         encoding='mbcs'
-    if not env and clean_env and 'posix' == os.name:
+
+    elif not env and clean_env:
         # Clean environment variables so that that subprocesses use English
         # instead of translated text. This helps when checking for certain
         # strings in the output.
@@ -144,11 +147,13 @@ def run_external(args, stdout=None, env=None, clean_env=True):
         env = {key: value for key, value in os.environ.items() if key in keep_env}
         env['LANG'] = 'C'
         env['LC_ALL'] = 'C'
+    
     p = subprocess.Popen(args, stdout=stdout,
                          stderr=subprocess.PIPE, env=env, **kwargs)
     try:
         out = p.communicate()
     except KeyboardInterrupt:
+        # ?
         out = p.communicate()
         print(out[0])
         print(out[1])
@@ -168,7 +173,6 @@ def startup_check():
     # BitDefender false positive.  BitDefender didn't mark BleachBit as infected or show
     # anything in its log, but sqlite would fail to import unless BitDefender was in "game mode."
     # https://www.bleachbit.org/forum/074-fails-errors
-    from bleachbit import ModuleNotFoundError
     try:
         from sqlite3 import SQLITE_OK
     except (ModuleNotFoundError, ImportError):
@@ -178,8 +182,8 @@ def startup_check():
 
 def sudo_mode():
     """Return whether running in sudo mode"""
-    if not sys.platform.startswith('linux'):
-        return False
+    # if not sys.platform.startswith('linux'):
+    #     return False
 
     # if 'root' == os.getenv('USER'):
         # gksu in Ubuntu 9.10 changes the username.  If the username is root,
@@ -187,4 +191,6 @@ def sudo_mode():
         # Fedora 13: os.getenv('USER') = 'root' under sudo
         # return False
 
-    return os.getenv('SUDO_UID') is not None
+    # return os.getenv('SUDO_UID') is not None
+    
+    return False if sys.platform == "win32" else getrealuid() == 0

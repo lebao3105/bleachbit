@@ -21,7 +21,7 @@
 Basic GUI code
 """
 
-from bleachbit import _, ModuleNotFoundError
+from bleachbit import _
 
 import os
 
@@ -45,7 +45,7 @@ else:
     test_import("wx")
 
 def browse_folder(parent, title, multiple: bool):
-    """Ask the user to select a folder.  Return the full path or None."""
+    """Ask the user to select a/multiple folder(s).  Return the full path or None."""
 
     chooser = wx.DirDialog(parent, title,
                            style=(wx.DD_DEFAULT_STYLE if not multiple
@@ -62,8 +62,8 @@ def browse_folder(parent, title, multiple: bool):
     return ret
 
 
-def browse_file(parent, title, multiple: bool = False):
-    """Prompt user to select a single file"""
+def browse_file(parent, title, multiple: bool = False) -> str | list[str]:
+    """Prompt user to select a single/multiple file(s)"""
 
     chooser = wx.FileDialog(parent, title, os.path.expanduser('~'),
                             style=(wx.FD_MULTIPLE if multiple

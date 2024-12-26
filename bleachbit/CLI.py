@@ -221,8 +221,8 @@ def process_cmd_line():
         pass
     elif options.preset:
         # but if --preset is given, check if GUI option sets debug
-        if Options.options.get('debug'):
-            set_root_log_level(Options.options.get('debug'))
+        if Options.options.Get('debug'):
+            set_root_log_level(Options.options.Get('debug'))
             logger.debug("Debugging is enabled in GUI settings.")
     if options.debug_log:
         logger.addHandler(logging.FileHandler(options.debug_log))

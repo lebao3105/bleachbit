@@ -36,6 +36,8 @@ import shlex
 import subprocess
 import sys
 
+assert os.name == 'posix'
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -45,7 +47,9 @@ except AttributeError:
 
 
 JOURNALD_REGEX = r'^Vacuuming done, freed ([\d.]+[BKMGT]?) of archived journals (on disk|from [\w/]+).$'
+units = {"B": 1, "k": 10**3, "M": 10**6, "G": 10**9}
 
+#region Locales
 
 class LocaleCleanerPath:
     """This represents a path with either a specific folder name or a folder name pattern.
@@ -343,15 +347,15 @@ class Locales:
          'zh_CN': '中文',
          'zh_TW': '中文',
          'zu': 'isiZulu'}
-
-    def __init__(self):
-        self._paths = LocaleCleanerPath(location='/')
+    
+    _paths: LocaleCleanerPath = LocaleCleanerPath(location='/')
 
     def add_xml(self, xml_node, parent=None):
         """Parses the xml data and adds nodes to the LocaleCleanerPath-tree"""
 
         if parent is None:
             parent = self._paths
+
         if xml_node.ELEMENT_NODE != xml_node.nodeType:
             return
 
@@ -360,35 +364,32 @@ class Locales:
             pre = xml_node.getAttribute('prefix') or ''
             post = xml_node.getAttribute('postfix') or ''
             parent.add_path_filter(pre, post)
+
         elif 'path' == xml_node.nodeName:
             if xml_node.hasAttribute('directoryregex'):
                 pattern = xml_node.getAttribute('directoryregex')
                 if '/' in pattern:
                     raise RuntimeError(
                         'directoryregex may not contain slashes.')
-                pattern = re.compile(pattern)
-                parent = parent.add_child(LocaleCleanerPath(pattern))
+                parent = parent.add_child(LocaleCleanerPath(re.compile(pattern)))
 
             # a combination of directoryregex and filter could be too much
             else:
                 if xml_node.hasAttribute("location"):
                     # if there's a filter attribute, it should apply to this path
-                    parent = parent.add_child(LocaleCleanerPath(
-                        xml_node.getAttribute('location')))
+                    parent = parent.add_child(LocaleCleanerPath(xml_node.getAttribute('location')))
 
                 if xml_node.hasAttribute('filter'):
                     userfilter = xml_node.getAttribute('filter')
                     if 1 != userfilter.count('*'):
                         raise RuntimeError(
-                            "Filter string '%s' must contain the placeholder * exactly once" % userfilter)
+                            f"Filter string '{userfilter}' must contain exactly ONE star (*) placeholder")
 
                     # we can't use re.escape, because it escapes too much
-                    (pre, post) = (re.sub(r'([\[\]()^$.])', r'\\\1', p)
-                                   for p in userfilter.split('*'))
+                    (pre, post) = (re.sub(r'([\[\]()^$.])', r'\\\1', p) for p in userfilter.split('*'))
                     parent.add_path_filter(pre, post)
         else:
-            raise RuntimeError(
-                "Invalid node '%s', expected '<path>' or '<regexfilter>'" % xml_node.nodeName)
+            raise RuntimeError(f"Invalid node '{xml_node.nodeName}', expected '<path>' or '<regexfilter>'")
 
         # handle child nodes
         for child_xml in xml_node.childNodes:
@@ -396,47 +397,61 @@ class Locales:
 
     def localization_paths(self, locales_to_keep):
         """Returns all localization items matching the previously added xml configuration"""
+        
+        # Should we?
         if not locales_to_keep:
             raise RuntimeError('Found no locales to keep')
-        purgeable_locales = frozenset((locale for locale in Locales.native_locale_names.keys()
-                                       if locale not in locales_to_keep))
+        
+        purgeable_locales = frozenset((locale for locale in Locales.native_locale_names.keys() if locale not in locales_to_keep))
 
         for (locale, specifier, path) in self._paths.get_localizations('/'):
             specific = locale + (specifier or '')
             if specific in purgeable_locales or \
-                    (locale in purgeable_locales and specific not in locales_to_keep):
-                yield path
+               (locale in purgeable_locales and specific not in locales_to_keep): yield path
 
+locales = Locales()
+
+#endregion
+
+#region .desktop validation
 
 def __is_broken_xdg_desktop_application(config, desktop_pathname):
     """Returns boolean whether application desktop entry file is broken"""
+
     if not config.has_option('Desktop Entry', 'Exec'):
-        logger.info(
-            "is_broken_xdg_menu: missing required option 'Exec': '%s'", desktop_pathname)
+        logger.info(f"is_broken_xdg_menu: missing required option 'Exec': '{desktop_pathname}'")
         return True
-    exe = config.get('Desktop Entry', 'Exec').split(" ")[0]
+    
+    run = config.get('Desktop Entry', 'Exec')
+    exe = run.split(" ")[0]
+    
     if not FileUtilities.exe_exists(exe):
-        logger.info(
-            "is_broken_xdg_menu: executable '%s' does not exist '%s'", exe, desktop_pathname)
+        logger.info(f"is_broken_xdg_menu: executable '{exe}' does not exist '{desktop_pathname}'")
         return True
+    
     if 'env' == exe:
         # Wine v1.0 creates .desktop files like this
         # Exec=env WINEPREFIX="/home/z/.wine" wine "C:\\Program
         # Files\\foo\\foo.exe"
-        execs = shlex.split(config.get('Desktop Entry', 'Exec'))
+        execs = shlex.split(run)
         wineprefix = None
         del execs[0]
+        
         while True:
-            if execs[0].find("=") < 0:
+            if execs[0].count('=') != 1:
                 break
+
             (name, value) = execs[0].split("=")
+            
             if name == 'WINEPREFIX':
                 wineprefix = value
+            
             del execs[0]
+
         if not FileUtilities.exe_exists(execs[0]):
-            logger.info(
-                "is_broken_xdg_menu: executable '%s' does not exist '%s'", execs[0], desktop_pathname)
+            logger.info(f"is_broken_xdg_menu: executable '{execs[0]}' does not exist '{desktop_pathname}'")
             return True
+        
         # check the Windows executable exists
         if wineprefix:
             windows_exe = wine_to_linux_path(wineprefix, execs[1])
@@ -444,6 +459,7 @@ def __is_broken_xdg_desktop_application(config, desktop_pathname):
                 logger.info("is_broken_xdg_menu: Windows executable '%s' does not exist '%s'",
                             windows_exe, desktop_pathname)
                 return True
+            
     return False
 
 
@@ -473,28 +489,26 @@ def is_broken_xdg_desktop(pathname):
         return False
         
     if not config.has_section('Desktop Entry'):
-        logger.info(
-            "is_broken_xdg_menu: missing required section 'Desktop Entry': '%s'", pathname)
+        logger.info(f"is_broken_xdg_menu: missing required section 'Desktop Entry': '{pathname}'")
         return True
     
-    if is_exist('Type') == True: return True
+    if is_exist('Type'): return True
+
     file_type = config.get('Desktop Entry', 'Type').strip().lower()
     
-    if 'link' == file_type:
-        if is_exist('URL') and not config.has_option('Desktop Entry', 'URL[$e]'):
-            logger.info(
-                "is_broken_xdg_menu: missing required option 'URL': '%s'", pathname)
-            return True
-        return False
-    
-    if 'mimetype' == file_type:
-        if is_exist('MimeType') == True: return True
-        mimetype = config.get('Desktop Entry', 'MimeType').strip().lower()
-        if is_unregistered_mime(mimetype):
-            logger.info(
-                "is_broken_xdg_menu: MimeType '%s' not registered '%s'", mimetype, pathname)
-            return True
-        return False
+    match file_type:
+        case 'link':
+            if is_exist('URL') and not config.has_option('Desktop Entry', 'URL[$e]'):
+                logger.warning(f"is_broken_xdg_menu: missing required option 'URL': {pathname}")
+        case 'mimetype':
+            if is_exist('MimeType'): return True
+            mimetype = config.get('Desktop Entry', 'MimeType').strip().lower()
+            
+            if is_unregistered_mime(mimetype):
+                logger.warning(f"is_broken_xdg_menu: MimeType '{mimetype}' not registered: '{pathname}'")
+                return True
+            
+            return False
     
     if 'application' != file_type:
         logger.warning("unhandled type '%s': file '%s'", file_type, pathname)
@@ -505,11 +519,13 @@ def is_broken_xdg_desktop(pathname):
     
     return False
 
+#endregion
+
+#region Check if a program is running
 
 def is_running_darwin(exename):
     try:
-        ps_out = subprocess.check_output(["ps", "aux", "-c"],
-                                         universal_newlines=True)
+        ps_out = subprocess.check_output(["ps", "aux", "-c"], universal_newlines=True)
         processes = (re.split(r"\s+", p, 10)[10]
                      for p in ps_out.split("\n") if p != "")
         next(processes)  # drop the header
@@ -542,29 +558,31 @@ def is_running(exename):
     """Check whether exename is running"""
     if sys.platform.startswith('linux'):
         return is_running_linux(exename)
-    elif ('darwin' == sys.platform or
-          sys.platform.startswith('openbsd') or
-          sys.platform.startswith('freebsd')):
+    
+    elif ('darwin' == sys.platform) or (sys.platform.count('bsd') > 0):
         return is_running_darwin(exename)
+    
     else:
         raise RuntimeError('unsupported platform for physical_free()')
 
+#endregion
 
 def rotated_logs():
     """Yield a list of rotated (i.e., old) logs in /var/log/"""
-    # Ubuntu 9.04
     # /var/log/dmesg.0
     # /var/log/dmesg.1.gz
-    # Fedora 10
     # /var/log/messages-20090118
+    
     globpaths = ('/var/log/*.[0-9]',
                  '/var/log/*/*.[0-9]',
                  '/var/log/*.gz',
                  '/var/log/*/*gz',
                  '/var/log/*/*.old',
                  '/var/log/*.old')
+    
     for globpath in globpaths:
         yield from glob.iglob(globpath)
+    
     regex = '-[0-9]{8}$'
     globpaths = ('/var/log/*-*', '/var/log/*/*-*')
     for path in FileUtilities.globex(globpaths, regex):
@@ -572,6 +590,13 @@ def rotated_logs():
         if re.match(whitelist_re, path) is None:  # for Slackware, Launchpad #367575
             yield path
 
+def get_globs_size(paths):
+    """Get the cumulative size (in bytes) of a list of globs"""
+    total_size = 0
+    for path in paths:
+        for p in glob.iglob(path):
+            total_size += FileUtilities.getsize(p)
+    return total_size
 
 def wine_to_linux_path(wineprefix, windows_pathname):
     """Return a Linux pathname from an absolute Windows pathname and Wine prefix"""
@@ -582,14 +607,18 @@ def wine_to_linux_path(wineprefix, windows_pathname):
     return os.path.join(wineprefix, windows_pathname)
 
 
-def run_cleaner_cmd(cmd, args, freed_space_regex=r'[\d.]+[kMGTE]?B?', error_line_regexes=None):
+def run_cleaner_cmd(cmd, args, freed_space_regex=r'[\d.]+[kMGTE]?B?', error_line_regexes=None, requires_root: bool = False):
     """Runs a specified command and returns how much space was (reportedly) freed.
     The subprocess shouldn't need any user input and the user should have the
     necessary rights.
     freed_space_regex gets applied to every output line, if the re matches,
     add values captured by the single group in the regex"""
     if not FileUtilities.exe_exists(cmd):
-        raise RuntimeError(_('Executable not found: %s') % cmd)
+        raise RuntimeError(_('Executable not found: ') + cmd)
+    
+    if requires_root and os.getuid() != 0:
+        raise RuntimeError(f'BleachBit needs to be ran as root for {cmd} {" ".join(args)} to work.')
+
     freed_space_regex = re.compile(freed_space_regex)
     error_line_regexes = [re.compile(regex)
                           for regex in error_line_regexes or []]
@@ -604,7 +633,7 @@ def run_cleaner_cmd(cmd, args, freed_space_regex=r'[\d.]+[kMGTE]?B?', error_line
             freed_space += FileUtilities.human_to_bytes(m.group(1))
         for error_re in error_line_regexes:
             if error_re.search(line):
-                raise RuntimeError('Invalid output from %s: %s' % (cmd, line))
+                raise RuntimeError(f'Invalid output from {cmd}: {line}')
 
     return freed_space
 
@@ -617,16 +646,17 @@ def journald_clean():
         raise RuntimeError("Error calling '%s':\n%s" %
                            (' '.join(e.cmd), e.output))
 
+#region Advanced Package Tool (APT) cleaners
 
 def apt_autoremove():
     """Run 'apt-get autoremove' and return the size (un-rounded, in bytes) of freed space"""
 
-    args = ['--yes', 'autoremove']
+    # Is APT have localizations?
     # After this operation, 74.7MB disk space will be freed.
     # After this operation, 44.0 kB disk space will be freed.
     freed_space_regex = r'.*, ([\d.]+ ?[a-zA-Z]{2}) disk space will be freed.'
     try:
-        return run_cleaner_cmd('apt-get', args, freed_space_regex, ['^E: '])
+        return run_cleaner_cmd('apt-get', ['autoremove', '-y'], freed_space_regex, ['^E: '], True)
     except subprocess.CalledProcessError as e:
         raise RuntimeError("Error calling '%s':\n%s" %
                            (' '.join(e.cmd), e.output))
@@ -660,20 +690,14 @@ def get_apt_size():
     return get_globs_size(paths)
 
 
-def get_globs_size(paths):
-    """Get the cumulative size (in bytes) of a list of globs"""
-    total_size = 0
-    for path in paths:
-        for p in glob.iglob(path):
-            total_size += FileUtilities.getsize(p)
-    return total_size
+#endregion
 
+#region Dnf & Yum cleaners
 
 def yum_clean():
     """Run 'yum clean all' and return size in bytes recovered"""
     if os.path.exists('/var/run/yum.pid'):
-        msg = _(
-            "%s cannot be cleaned because it is currently running.  Close it, and try again.") % "Yum"
+        msg = "Yum" + _(" cannot be cleaned because it is currently running.  Close it, and try again.")
         raise RuntimeError(msg)
 
     old_size = FileUtilities.getsizedir('/var/cache/yum')
@@ -687,8 +711,7 @@ def yum_clean():
 def dnf_clean():
     """Run 'dnf clean all' and return size in bytes recovered"""
     if os.path.exists('/var/run/dnf.pid'):
-        msg = _(
-            "%s cannot be cleaned because it is currently running.  Close it, and try again.") % "Dnf"
+        msg = "Dnf" + _(" cannot be cleaned because it is currently running.  Close it, and try again.")
         raise RuntimeError(msg)
 
     old_size = FileUtilities.getsizedir('/var/cache/dnf')
@@ -700,9 +723,6 @@ def dnf_clean():
     return old_size - new_size
 
 
-units = {"B": 1, "k": 10**3, "M": 10**6, "G": 10**9}
-
-
 def parseSize(size):
     """Parse the size returned by dnf"""
     number, unit = [string.strip() for string in size.split()]
@@ -712,17 +732,19 @@ def parseSize(size):
 def dnf_autoremove():
     """Run 'dnf autoremove' and return size in bytes recovered."""
     if os.path.exists('/var/run/dnf.pid'):
-        msg = _(
-            "%s cannot be cleaned because it is currently running.  Close it, and try again.") % "Dnf"
+        msg = "Dnf" + _(" cannot be cleaned because it is currently running.  Close it, and try again.")
         raise RuntimeError(msg)
+    
+    if os.getuid() != 0:
+        raise RuntimeError('BleachBit is not running as root. This is required for Dnf and every other system touches.')
+
     cmd = ['dnf', '-y', 'autoremove']
     (rc, stdout, stderr) = General.run_external(cmd)
     freed_bytes = 0
     allout = stdout + stderr
-    if 'Error: This command has to be run under the root user.' in allout:
-        raise RuntimeError('dnf autoremove >> requires root permissions')
+    
     if rc > 0:
-        raise RuntimeError('dnf raised error %s: %s' % (rc, stderr))
+        raise RuntimeError(f'dnf raised error code {rc}: {stderr}')
 
     cregex = re.compile("Freed space: ([\d.]+[\s]+[BkMG])")
     match = cregex.search(allout)
@@ -732,39 +754,42 @@ def dnf_autoremove():
         'dnf_autoremove >> total freed bytes: %s', freed_bytes)
     return freed_bytes
 
+#endregion
+
+#region Wayland and X11 checks
 
 def is_unix_display_protocol_wayland():
-    assert os.name == 'posix'
     if 'XDG_SESSION_TYPE' in os.environ:
-        if os.environ['XDG_SESSION_TYPE'] == 'wayland':
-            return True
-        # If not wayland, then x11, mir, etc.
-        return False
+        return os.environ['XDG_SESSION_TYPE'] == 'wayland'
+    
     if 'WAYLAND_DISPLAY' in os.environ:
         return True
+    
     # Wayland (Ubuntu 23.10) sets DISPLAY=:0 like x11, so do not check DISPLAY.
     try:
         (rc, stdout, stderr) = General.run_external(['loginctl'])
     except FileNotFoundError:
         return False
+    
     if not rc == 0:
-        logger.warning('logintctl returned rc %s', rc)
+        logger.warning('logintctl returned non-zero code %s', rc)
         return False
+    
     try:
         session = stdout.split('\n')[1].strip().split(' ')[0]
     except (IndexError, ValueError):
         logger.warning('unexpected output from loginctl: %s', stdout)
         return False
+    
     if not session.isdigit():
         logger.warning('unexpected session loginctl: %s', session)
         return False
-    result = General.run_external(
-        ['loginctl', 'show-session', session, '-p', 'Type'])
+    
+    result = General.run_external(['loginctl', 'show-session', session, '-p', 'Type'])
     return 'wayland' in result[1].lower()
 
 
 def root_is_not_allowed_to_X_session():
-    assert os.name == 'posix'
     result = General.run_external(['xhost'], clean_env=False)
     xhost_returned_error = result[0] == 1
     return xhost_returned_error
@@ -772,15 +797,13 @@ def root_is_not_allowed_to_X_session():
 
 def is_display_protocol_wayland_and_root_not_allowed():
     try:
-        is_wayland = bleachbit.Unix.is_unix_display_protocol_wayland()
+        is_wayland = is_unix_display_protocol_wayland()
     except Exception as e:
         logger.exception(e)
         return False
     return (
         is_wayland and
-        os.environ['USER'] == 'root' and
-        bleachbit.Unix.root_is_not_allowed_to_X_session()
+        os.getuid() == 0 and
+        root_is_not_allowed_to_X_session()
     )
-
-
-locales = Locales()
+#endregion

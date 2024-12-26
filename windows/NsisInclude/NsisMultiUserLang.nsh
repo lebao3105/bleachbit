@@ -11,6 +11,18 @@ Version: 2023-02-223
 
 */
 
+!ifdef LANG_AFRIKAANS
+	!define CURRLANG LANG_AFRIKAANS
+!endif
+
+!ifdef LANG_ALBANIAN
+	!define CURRLANG LANG_ALBANIAN
+!endif
+
+!ifdef LANG_ARABIC
+	!define CURRLANG LANG_ARABIC
+!endif
+
 !ifdef LANG_ENGLISH
 	LangString MULTIUSER_PAGE_TITLE ${LANG_ENGLISH} "Choose Users"
 	LangString MULTIUSER_INSTALL_PAGE_SUBTITLE ${LANG_ENGLISH} "Choose for which users to install $(^NameDA)."

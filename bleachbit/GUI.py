@@ -29,7 +29,7 @@ from bleachbit.Options import options, init_configuration
 
 # Now that the configuration is loaded, honor the debug preference there.
 from bleachbit.Log import set_root_log_level
-set_root_log_level(options.get('debug'))
+set_root_log_level(options.Get('bleachbit', 'debug', noraise=True))
 
 from bleachbit.GuiPreferences import PreferencesDialog
 from bleachbit.Cleaner import backends, register_cleaners
@@ -66,11 +66,7 @@ def threaded(func):
 
 def notify(msg):
     """Show a popup-notification"""
-    return wx.adv.NotificationMessage(
-        title=APP_NAME,
-        message=msg,
-        parent=None
-    ).Show(10000)
+    return wx.adv.NotificationMessage(APP_NAME, msg, None).Show(10000)
 
 
 class Bleachbit(wx.App, XMLBuilder):
@@ -150,8 +146,7 @@ class Bleachbit(wx.App, XMLBuilder):
         
         self.ShowSplashScreen()
         self.SetTopWindow(self.mainFrame)
-        self.mainFrame.Centre()
-        self.mainFrame.Show()
+        self.mainFrame.Center()
         
         wx.CallAfter(self.cb_refresh_operations)
 
@@ -159,8 +154,8 @@ class Bleachbit(wx.App, XMLBuilder):
         """
         Shows a splash screen on Windows.
         """
-        if os.name != 'nt': return # Probably we should use PNG on all platforms (splash screen now uses .ico)
-        bleachbit.SplashScreen(self.mainFrame).Show()
+        if os.name != 'nt': self.mainFrame.Show() # Probably we should use PNG on all platforms (splash screen now uses .ico)
+        bleachbit.SplashScreen(self.mainFrame)
 
     def shred_paths(self, paths, shred_settings=False):
         """
@@ -367,7 +362,7 @@ class Bleachbit(wx.App, XMLBuilder):
                            title=_("System infomation"),
                            size=(600, 400))
         
-        sizer = wx.BoxSizer()
+        sizer = wx.BoxSizer(wx.VERTICAL)
         txt = SystemInformation.get_system_information()
         textview = wx.TextCtrl(dialog, value=txt, style=wx.TE_MULTILINE | wx.TE_READONLY)
         

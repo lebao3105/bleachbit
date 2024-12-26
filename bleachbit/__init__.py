@@ -41,7 +41,11 @@ APP_URL = "https://www.bleachbit.org"
 socket_timeout = 10
 
 if sys.version_info < (3,0,0):
-    print('BleachBit no longer supports Python 2.x.')
+    print('BleachBit no longer supports Python 2. Use Python 3.10 or higher.')
+    sys.exit(1)
+
+if sys.version_info < (3,10,0):
+    print('You need Python 3.10 or higher to run BleachBit.')
     sys.exit(1)
 
 if hasattr(sys, 'frozen') and sys.frozen == 'windows_exe':
@@ -93,17 +97,20 @@ for lf in license_filenames:
 # configuration
 portable_mode = False
 options_dir = None
-if 'posix' == os.name:
-    options_dir = os.path.expanduser("~/.config/bleachbit")
-elif 'nt' == os.name:
-    os.environ.pop('FONTCONFIG_FILE', None)
-    if os.path.exists(os.path.join(bleachbit_exe_path, 'bleachbit.ini')):
-        # portable mode
-        portable_mode = True
-        options_dir = bleachbit_exe_path
-    else:
-        # installed mode
-        options_dir = os.path.expandvars(r"${APPDATA}\BleachBit")
+
+match os.name:
+    case 'nt':
+        os.environ.pop('FONTCONFIG_FILE', None)
+        if os.path.exists(os.path.join(bleachbit_exe_path, 'bleachbit.ini')):
+            # portable mode
+            portable_mode = True
+            options_dir = bleachbit_exe_path
+        else:
+            # installed mode
+            options_dir = os.path.expandvars(r"${APPDATA}\BleachBit")
+
+    case _:
+        options_dir = os.path.expanduser("~/.config/bleachbit")
 
 try:
     options_dir = os.environ['BLEACHBIT_TEST_OPTIONS_DIR']
@@ -114,10 +121,7 @@ options_file = os.path.join(options_dir, "bleachbit.ini")
 
 # check whether the application is running from the source tree
 if not portable_mode:
-    paths = (
-        '../cleaners',
-        '../Makefile',
-        '../COPYING')
+    paths = ('../cleaners', '../Makefile', '../COPYING')
     existing = (
         os.path.exists(os.path.join(bleachbit_exe_path, path))
         for path in paths)
@@ -125,33 +129,44 @@ if not portable_mode:
 
 # personal cleaners
 personal_cleaners_dir = os.path.join(options_dir, "cleaners")
+locale_dir = ""
 
-# system cleaners
+if os.path.isdir(os.path.join(bleachbit_exe_path, 'cleaners')) and not portable_mode:
+    system_cleaners_dir = os.path.join(bleachbit_exe_path, 'cleaners')
+
+elif sys.platform.startswith('linux') or sys.platform == 'darwin':
+    system_cleaners_dir = '/usr/share/bleachbit/cleaners'
+    locale_dir = "/usr/share/locale/"
+
 # On Windows in portable mode, the bleachbit_exe_path is equal to
 # options_dir, so be careful that system_cleaner_dir is not set to
 # personal_cleaners_dir.
-if os.path.isdir(os.path.join(bleachbit_exe_path, 'cleaners')) and not portable_mode:
-    system_cleaners_dir = os.path.join(bleachbit_exe_path, 'cleaners')
-elif sys.platform.startswith('linux') or sys.platform == 'darwin':
-    system_cleaners_dir = '/usr/share/bleachbit/cleaners'
 elif sys.platform == 'win32':
     system_cleaners_dir = os.path.join(bleachbit_exe_path, 'share\\cleaners\\')
+    locale_dir = os.path.join(bleachbit_exe_path, "share\\locale\\")
+
 elif sys.platform[:6] == 'netbsd':
     system_cleaners_dir = '/usr/pkg/share/bleachbit/cleaners'
+    locale_dir = "/usr/pkg/share/locale/"
+
 elif sys.platform.startswith('openbsd') or sys.platform.startswith('freebsd'):
     system_cleaners_dir = '/usr/local/share/bleachbit/cleaners'
+    locale_dir = "/usr/local/share/locale/"
+
 else:
     system_cleaners_dir = None
     logger.warning(
-        'unknown system cleaners directory for platform %s ', sys.platform)
+        f'unknown system cleaners directory for {sys.platform} platform')
+
+
+if os.path.exists("./locale/"):
+    # local locale (personal)
+    locale_dir = os.path.abspath("./locale/")
 
 # local cleaners directory for running without installation (Windows or Linux)
 local_cleaners_dir = None
 if portable_mode:
     local_cleaners_dir = os.path.join(bleachbit_exe_path, 'cleaners')
-
-# windows10 theme
-windows10_theme_path = os.path.normpath(os.path.join(bleachbit_exe_path, 'themes/windows10'))
 
 # application icon
 __icons = (
@@ -181,22 +196,6 @@ def findXRCPath(name: str):
 
 app_window_filename = findXRCPath('bleachbit.xrc')
 app_makechaff_filename = findXRCPath('makechaff.xrc')
-
-# locale directory
-if os.path.exists("./locale/"):
-    # local locale (personal)
-    locale_dir = os.path.abspath("./locale/")
-# system-wide installed locale
-elif sys.platform.startswith("linux") or sys.platform == "darwin":
-    locale_dir = "/usr/share/locale/"
-elif sys.platform == "win32":
-    locale_dir = os.path.join(bleachbit_exe_path, "share\\locale\\")
-elif sys.platform[:6] == "netbsd":
-    locale_dir = "/usr/pkg/share/locale/"
-elif sys.platform.startswith("openbsd") or sys.platform.startswith("freebsd"):
-    locale_dir = "/usr/local/share/locale/"
-
-
 
 #
 # gettext
@@ -296,11 +295,9 @@ _p = pgettext
 # URLs
 #
 base_url = "https://update.bleachbit.org"
-help_contents_url = "%s/help/%s" \
-    % (base_url, APP_VERSION)
-release_notes_url = "%s/release-notes/%s" \
-    % (base_url, APP_VERSION)
-update_check_url = "%s/update/%s" % (base_url, APP_VERSION)
+help_contents_url = f"{base_url}/help/{APP_VERSION}"
+release_notes_url = f"{base_url}/release-notes/{APP_VERSION}"
+update_check_url = f"{base_url}/update/{APP_VERSION}"
 
 # set up environment variables
 if 'nt' == os.name:
@@ -322,18 +319,6 @@ if 'posix' == os.name:
 fs_scan_re_flags = 0 if os.name == 'posix' else re.IGNORECASE
 
 #
-# Exceptions
-#
-
-
-# Python 3.6 is the first with this exception
-if hasattr(sys.modules['builtins'], 'ModuleNotFoundError'):
-    ModuleNotFoundError = sys.modules['builtins'].ModuleNotFoundError
-else:
-    class ModuleNotFoundError(Exception):
-        pass
-
-#
 # Splash screen (cross-platform)
 #
 
@@ -349,3 +334,5 @@ class SplashScreen(AdvancedSplash):
         
         AdvancedSplash.__init__(this, parent, bitmap=icon,
                                 timeout=5000, agwStyle=AS_TIMEOUT | AS_CENTER_ON_SCREEN)
+        
+        wx.CallLater(5000, parent.Show).Start()

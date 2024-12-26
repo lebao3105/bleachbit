@@ -65,7 +65,7 @@ def __shred_sqlite_char_columns(table, cols=None, where="", path=None):
     if not where:
         # If None, set to empty string.
         where = ""
-    if cols and options.get('shred'):
+    if cols and options.Get('shred'):
         cmd += "update or ignore %s set %s %s;" % \
             (table, ",".join(["%s = randomblob(length(%s))" % (col, col)
                               for col in cols]), where)

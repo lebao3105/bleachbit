@@ -31,6 +31,7 @@ What I have done (inside and outside [bleachbit/](bleachbit/)):
 * Ported dialogs (Make chaff, About, System infomation) to wxPython
 * Ported main window & GUI entrypoint to wxPython (not completed)
 * Ported all universal GUI functions to use wxPython and cross-platform solutions
+* Splash screen is here too!
 * Kept all strings for translation
 * Removed Windows theme for GTK as not needed anymore
 
@@ -39,8 +40,9 @@ What I have not done:
 * Fully port ~~Preferences~~ (completed) and main window
 * Add macOS search paths
 * Update tests (they're a bunch of files)
+* Use libtextworker library (some updates to the library will be made and public)
 
-For macOS search paths for the cleaner, I suggest you ask in forums, or look at programs such as iCleaner (for jailbroken device). Create a fork or message me about what did you find!
+For macOS search paths for the cleaner, I suggest you ask in forums, or look at programs such as iCleaner (for jailbroken device). Create a fork or message me about what you got!
 
 ### FAQ
 

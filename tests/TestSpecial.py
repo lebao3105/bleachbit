@@ -370,12 +370,12 @@ class SpecialTestCase(common.BleachbitTestCase, SpecialAssertions):
             raise RuntimeError('neither fn nor sql supplied')
 
         # clean the file
-        old_shred = options.get('shred')
+        old_shred = options.Get('shred')
         options.set('shred', False, commit=False)
-        self.assertFalse(options.get('shred'))
+        self.assertFalse(options.Get('shred'))
         clean_func(filename)
         options.set('shred', True, commit=False)
-        self.assertTrue(options.get('shred'))
+        self.assertTrue(options.Get('shred'))
         clean_func(filename)
         options.set('shred', old_shred, commit=False)
         self.assertExists(filename)

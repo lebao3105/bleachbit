@@ -45,7 +45,7 @@ import time
 logger = logging.getLogger(__name__)
 
 if 'nt' == os.name:
-    from pywintypes import error as pywinerror
+    from win32ctypes.pywintypes import error as pywinerror
     import win32file
     import bleachbit.Windows
     os_path_islink = os.path.islink
@@ -189,7 +189,7 @@ def bytes_to_human(bytes_i):
         return '-' + bytes_to_human(-bytes_i)
 
     from bleachbit.Options import options
-    if options.get('units_iec'):
+    if options.Get('units_iec'):
         prefixes = ['', 'Ki', 'Mi', 'Gi', 'Ti', 'Pi']
         base = 1024.0
     else:
@@ -284,7 +284,7 @@ def clean_ini(path, section, parameter):
     if changed:
         from bleachbit.Options import options
         fp.close()
-        if options.get('shred'):
+        if options.Get('shred'):
             delete(path, True)
         with open(path, 'w', encoding=encoding, newline='') as fp:
             config.write(config, fp)
@@ -322,7 +322,7 @@ def clean_json(path, target):
 
     if changed:
         from bleachbit.Options import options
-        if options.get('shred'):
+        if options.Get('shred'):
             delete(path, True)
         # write file
         with open(path, 'w', encoding='utf-8') as f:
@@ -338,7 +338,7 @@ def delete(path, shred=False, ignore_missing=False, allow_shred=True):
     from bleachbit.Options import options
     is_special = False
     path = extended_path(path)
-    do_shred = allow_shred and (shred or options.get('shred'))
+    do_shred = allow_shred and (shred or options.Get('shred'))
     if not os.path.lexists(path):
         if ignore_missing:
             return
@@ -470,7 +470,7 @@ def execute_sqlite3(path, cmds):
         # overwrites deleted content with zeros
         # https://www.sqlite.org/pragma.html#pragma_secure_delete
         from bleachbit.Options import options
-        if options.get('shred'):
+        if options.Get('shred'):
             cursor.execute('PRAGMA secure_delete=ON')
 
         for cmd in cmds.split(';'):
